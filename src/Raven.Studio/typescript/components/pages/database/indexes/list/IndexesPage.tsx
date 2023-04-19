@@ -112,7 +112,7 @@ export function IndexesPage(props: IndexesPageProps) {
                 )}
                 <IndexFilterDescription
                     filter={filter}
-                    setFilter={(x) => setFilter(x)}
+                    setFilter={setFilter}
                     indexes={getAllIndexes(groups, replacements)}
                 />
             </StickyHeader>

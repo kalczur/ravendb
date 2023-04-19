@@ -61,5 +61,5 @@ export interface IndexFilterCriteria {
     searchText: string;
     status: IndexStatus[];
     showOnlyIndexesWithIndexingErrors: boolean;
-    autoRefresh: boolean; //TODO:
+    autoRefresh: boolean;
 }

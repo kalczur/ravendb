@@ -51,7 +51,7 @@ function hasAnyStateFilter(filter: IndexFilterCriteria) {
 
 interface IndexFilterDescriptionProps {
     filter: IndexFilterCriteria;
-    setFilter: (x: IndexFilterCriteria) => void;
+    setFilter: React.Dispatch<React.SetStateAction<IndexFilterCriteria>>;
     indexes: IndexSharedInfo[];
 }
 
@@ -119,6 +119,14 @@ export function IndexFilterDescription(props: IndexFilterDescriptionProps) {
         );
     };
 
+    const toggleAutoRefresh = () => {
+        setFilter((x) =>
+            produce(x, (draft) => {
+                draft.autoRefresh = !draft.autoRefresh;
+            })
+        );
+    };
+
     return (
         <Row className="d-flex align-items-end mb-3">
             <Col>
@@ -145,7 +153,13 @@ export function IndexFilterDescription(props: IndexFilterDescriptionProps) {
                 /> */}
             </Col>
             <Col sm="auto">
-                <Switch id="autoRefresh" toggleSelection={null} selected={null} color="info" className="mt-1">
+                <Switch
+                    id="autoRefresh"
+                    toggleSelection={toggleAutoRefresh}
+                    selected={filter.autoRefresh}
+                    color="info"
+                    className="mt-1"
+                >
                     <span>Auto refresh is {filter.autoRefresh ? "on" : "off"}</span>
                 </Switch>
                 <UncontrolledPopover target="autoRefresh" trigger="hover" placement="bottom">

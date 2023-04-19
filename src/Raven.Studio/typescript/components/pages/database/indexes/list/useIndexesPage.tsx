@@ -157,6 +157,8 @@ export function useIndexesPage(database: database, stale: boolean) {
     const currentProcessor = useRef<(e: IndexChange) => void>();
 
     useEffect(() => {
+        // TODO klaczur
+        // TODO zapytaj czy tego nie zrobił kwiato
         currentProcessor.current = (e: Raven.Client.Documents.Changes.IndexChange) => {
             if (!filter.autoRefresh || resettingIndex) {
                 return;
