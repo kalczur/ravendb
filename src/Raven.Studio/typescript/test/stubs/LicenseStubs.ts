@@ -56,7 +56,14 @@ export class LicenseStubs {
             },
             FormattedExpiration: null,
             ErrorMessage: null,
-            Version: 50,
+            Version: {
+                Build: 1,
+                Major: 1,
+                MajorRevision: 0,
+                Minor: 2,
+                MinorRevision: 0,
+                Revision: 0,
+            },
             Expiration: moment()
                 .add(2 as const, "months")
                 .format(),
@@ -93,6 +100,16 @@ export class LicenseStubs {
             HasPowerBI: true,
             HasPostgreSqlIntegration: true,
             HasQueueSink: true,
+            UpgradeRequired: false,
+            HasServerWideTasks: true,
+            HasIndexCleanup: true,
+            HasPeriodicBackup: true,
+            HasClientConfiguration: true,
+            HasStudioConfiguration: true,
+            HasDataArchival: true,
+            HasRevisionsInSubscriptions: true,
+            HasMultiNodeSharding: true,
+            CanSetupDefaultRevisionsConfiguration: true,
         };
     }
 
@@ -114,7 +131,7 @@ export class LicenseStubs {
             MaxNumberOfCustomAnalyzersPerDatabase: 1,
             MaxNumberOfCustomAnalyzersPerCluster: 5,
             MaxNumberOfRevisionsToKeep: 2,
-            MaxNumberOfRevisionsByAgeToKeep: 3888000,
+            MaxNumberOfRevisionAgeToKeepInDays: 45,
         };
     }
 
