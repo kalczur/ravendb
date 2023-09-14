@@ -81,7 +81,27 @@ class about extends viewModelBase {
         const licenseStatus = license.licenseStatus();
         return licenseStatus ? licenseStatus.MaxMemory : 6;
     });
-    
+
+    // TODO kalczur add visible
+    // maxNumberOfStaticIndexesPerDatabase = ko.pureComputed(() => license.getStatusValue("MaxNumberOfStaticIndexesPerDatabase"));
+
+
+    maxCoresPerNode = ko.pureComputed(() => license.getStatusValue("MaxCoresPerNode"));
+    minPeriodForRefreshInHours = ko.pureComputed(() => license.getStatusValue("MinPeriodForRefreshInHours")); // TODO
+
+    maxNumberOfStaticIndexesPerDatabase = ko.pureComputed(() => license.getStatusValue("MaxNumberOfStaticIndexesPerDatabase"));
+    maxNumberOfStaticIndexesPerCluster = ko.pureComputed(() => license.getStatusValue("MaxNumberOfStaticIndexesPerCluster"));
+    maxNumberOfAutoIndexesPerDatabase = ko.pureComputed(() => license.getStatusValue("MaxNumberOfAutoIndexesPerDatabase"));
+    maxNumberOfAutoIndexesPerCluster = ko.pureComputed(() => license.getStatusValue("MaxNumberOfAutoIndexesPerCluster"));
+    maxNumberOfSubscriptionsPerDatabase = ko.pureComputed(() => license.getStatusValue("MaxNumberOfSubscriptionsPerDatabase"));
+    maxNumberOfSubscriptionsPerCluster = ko.pureComputed(() => license.getStatusValue("MaxNumberOfSubscriptionsPerCluster"));
+    maxNumberOfCustomSortersPerDatabase = ko.pureComputed(() => license.getStatusValue("MaxNumberOfCustomSortersPerDatabase"));
+    maxNumberOfCustomSortersPerCluster = ko.pureComputed(() => license.getStatusValue("MaxNumberOfCustomSortersPerCluster"));
+    maxNumberOfCustomAnalyzersPerDatabase = ko.pureComputed(() => license.getStatusValue("MaxNumberOfCustomAnalyzersPerDatabase"));
+    maxNumberOfCustomAnalyzersPerCluster = ko.pureComputed(() => license.getStatusValue("MaxNumberOfCustomAnalyzersPerCluster"));
+    maxNumberOfRevisionsToKeep = ko.pureComputed(() => license.getStatusValue("MaxNumberOfRevisionsToKeep"));
+    maxNumberOfRevisionAgeToKeepInDays = ko.pureComputed(() => license.getStatusValue("MaxNumberOfRevisionAgeToKeepInDays"));
+
     canUpgradeSupport = ko.pureComputed(() => {
         const support = license.supportCoverage();
         if (!support || !support.Status) {

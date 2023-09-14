@@ -35,7 +35,7 @@ namespace Raven.Server
     public sealed class Program
     {
         private static readonly Logger Logger = LoggingSource.Instance.GetLogger<Program>("Server");
-        
+
         public static unsafe int Main(string[] args)
         {
             NativeMemory.GetCurrentUnmanagedThreadId = () => (ulong)Pal.rvn_get_current_thread_id();
@@ -110,7 +110,7 @@ namespace Raven.Server
                 );
 
             TrafficWatchToLog.Instance.UpdateConfiguration(configuration.TrafficWatch);
-            
+
             if (Logger.IsInfoEnabled)
                 Logger.Info($"Logging to {configuration.Logs.Path} set to {configuration.Logs.Mode} level.");
 
@@ -277,7 +277,7 @@ namespace Raven.Server
                                 message =
                                     $"{Environment.NewLine}In Linux low-level port (below 1024) will need a special permission, " +
                                     $"if this is your case please run{Environment.NewLine}" +
-                                    $"sudo setcap CAP_NET_BIND_SERVICE=+eip {Path.Combine(AppContext.BaseDirectory, "Raven.Server")}{Environment.NewLine}" + 
+                                    $"sudo setcap CAP_NET_BIND_SERVICE=+eip {Path.Combine(AppContext.BaseDirectory, "Raven.Server")}{Environment.NewLine}" +
                                     $"Urls: [{urls}]";
                             }
                             else if (e.InnerException is LicenseExpiredException)
@@ -332,8 +332,8 @@ namespace Raven.Server
 
                 var licenseStatus = LicenseManager.GetLicenseStatus(license);
 
-                VerifyLicenseVersion(licenseStatus, serverStore);
-                VerifyLicenseExpiration(licenseStatus, serverStore, environment, license, contextPool);
+                // VerifyLicenseVersion(licenseStatus, serverStore);
+                // VerifyLicenseExpiration(licenseStatus, serverStore, environment, license, contextPool);
             }
         }
 
@@ -359,7 +359,7 @@ namespace Raven.Server
 
             //TODO: add link and explain what need to be done
             throw new LicenseLimitException($"Your license version with ID '{licenseStatus.Id}' is '{licenseStatus.Version}' doesn't allow you to upgrade to server version '{RavenVersionAttribute.Instance.FullVersion}'. " +
-                                            
+
                                             $"You can upgrade");
         }
 

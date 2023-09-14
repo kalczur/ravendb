@@ -148,13 +148,39 @@
                         <i class="icon-infinity" data-bind="visible: maxClusterSize() === 0"></i>
                     </div>
                     <div class="name">Max cores in cluster</div><div class="value"><strong data-bind="text: maxCores"></strong></div>
+                    <div class="name">Max cores per node</div><div class="value"><strong data-bind="text: maxCoresPerNode"></strong></div>
+                    <div class="name">Multi node sharding</div><div class="value"><i data-bind="attr: { class: licenseAttribute('HasMultiNodeSharding') }"></i></div>
                     <div class="name">Max cluster memory usage</div><div class="value"><strong data-bind="text: maxMemory() + ' GB RAM'"></strong></div>
+                    <div class="name">Tasks</div><div class="value"><i data-bind="attr: { class: licenseAttribute('HasServerWideTasks') }"></i></div>
                     <div class="name">Highly available tasks</div><div class="value"><i data-bind="attr: { class: licenseAttribute('HasHighlyAvailableTasks') }"></i></div>
                     <div class="name">Dynamic database distribution</div><div class="value"><i data-bind="attr: { class: licenseAttribute('HasDynamicNodesDistribution') }"></i></div>
                     <div class="name">TCP Data Compression</div><div class="value"><i data-bind="attr: { class: licenseAttribute('HasTcpDataCompression') }"></i></div>
 
                     <a href="https://ravendb.net/features#indexes" target="_blank" class="d-contents"><h4>Indexes <i class="icon-newtab"></i></h4></a>
                     <div class="name">Additional Assemblies from NuGet</div><div class="value"><i data-bind="attr: { class: licenseAttribute('HasAdditionalAssembliesFromNuGet') }"></i></div>
+                    <div class="name">Index Cleanup</div><div class="value"><i data-bind="attr: { class: licenseAttribute('HasIndexCleanup') }"></i></div>
+                    <div class="name">Max static indexes per database</div>
+                    <div>
+                         <strong data-bind="text: maxNumberOfStaticIndexesPerDatabase, visible: maxNumberOfStaticIndexesPerDatabase() != null"></strong>
+                         <i class="icon-infinity" data-bind="visible: maxNumberOfStaticIndexesPerDatabase() == null"></i>
+                    </div>
+                    <div class="name">Max auto indexes per database</div>
+                    <div>
+                         <strong data-bind="text: maxNumberOfAutoIndexesPerDatabase, visible: maxNumberOfAutoIndexesPerDatabase() != null"></strong>
+                         <i class="icon-infinity" data-bind="visible: maxNumberOfAutoIndexesPerDatabase() == null"></i>
+                    </div>
+
+                    <div class="name">Max static indexes in cluster</div>
+                    <div>
+                         <strong data-bind="text: maxNumberOfStaticIndexesPerCluster, visible: maxNumberOfStaticIndexesPerCluster() != null"></strong>
+                         <i class="icon-infinity" data-bind="visible: maxNumberOfStaticIndexesPerCluster() == null"></i>
+                    </div>
+
+                    <div class="name">Max auto indexes in cluster</div>
+                    <div>
+                         <strong data-bind="text: maxNumberOfAutoIndexesPerCluster, visible: maxNumberOfAutoIndexesPerCluster() != null"></strong>
+                         <i class="icon-infinity" data-bind="visible: maxNumberOfAutoIndexesPerCluster() == null"></i>
+                    </div>
 
                     <a href="https://ravendb.net/features#monitoring" target="_blank" class="d-contents"><h4>Monitoring <i class="icon-newtab"></i></h4></a>
                     <div class="name">Cluster Dashboard</div><div class="value"><i class="icon-checkmark"></i></div>
@@ -163,13 +189,51 @@
 
                     <a href="https://ravendb.net/features#extensions" target="_blank" class="d-contents"><h4>Extensions <i class="icon-newtab"></i></h4></a>
                     <div class="name">Document Revisions</div><div class="value"><i class="icon-checkmark"></i></div>
+                    <div class="name">Max revisions to keep</div>
+                    <div>
+                         <strong data-bind="text: maxNumberOfRevisionsToKeep, visible: maxNumberOfRevisionsToKeep() != null"></strong>
+                         <i class="icon-infinity" data-bind="visible: maxNumberOfRevisionsToKeep() == null"></i>
+                    </div>
+                    <div class="name">Max revision age to keep (days)</div>
+                    <div>
+                         <strong data-bind="text: maxNumberOfRevisionAgeToKeepInDays, visible: maxNumberOfRevisionAgeToKeepInDays() != null"></strong>
+                         <i class="icon-infinity" data-bind="visible: maxNumberOfRevisionAgeToKeepInDays() == null"></i>
+                    </div>
                     <div class="name">Document Expiration</div><div class="value"><i class="icon-checkmark"></i></div>
                     <div class="name">Document Compression</div><div class="value"><i data-bind="attr: { class: licenseAttribute('HasDocumentsCompression') }"></i></div>
+                    <div class="name">Client Configuration</div><div class="value"><i data-bind="attr: { class: licenseAttribute('HasClientConfiguration') }"></i></div>
+                    <div class="name">Studio Configuration</div><div class="value"><i data-bind="attr: { class: licenseAttribute('HasStudioConfiguration') }"></i></div>
+                    <div class="name">Data Archival</div><div class="value"><i data-bind="attr: { class: licenseAttribute('HasDataArchival') }"></i></div>
                     <div class="name">Attachments</div><div class="value"><i class="icon-checkmark"></i></div>
                     <div class="name">Counters</div><div class="value"><i class="icon-checkmark"></i></div>
                     <div class="name">Time Series</div><div class="value"><i class="icon-checkmark"></i></div>
                     <div class="name">Incremental Time Series</div><div class="value"><i class="icon-checkmark"></i></div>
                     <div class="name">Time Series Rollups & Retention</div><div class="value"><i data-bind="attr: { class: licenseAttribute('HasTimeSeriesRollupsAndRetention') }"></i></div>
+                    <div class="name">Min period for refresh (hours)</div>
+                    <div>
+                         <strong data-bind="text: minPeriodForRefreshInHours, visible: minPeriodForRefreshInHours() != null"></strong>
+                         <i class="icon-infinity" data-bind="visible: minPeriodForRefreshInHours() == null"></i>
+                    </div>
+                    <div class="name">Max custom sorters per database</div>
+                    <div>
+                         <strong data-bind="text: maxNumberOfCustomSortersPerDatabase, visible: maxNumberOfCustomSortersPerDatabase() != null"></strong>
+                         <i class="icon-infinity" data-bind="visible: maxNumberOfCustomSortersPerDatabase() == null"></i>
+                    </div>
+                    <div class="name">Max custom analyzers per database</div>
+                    <div>
+                         <strong data-bind="text: maxNumberOfCustomAnalyzersPerDatabase, visible: maxNumberOfCustomAnalyzersPerDatabase() != null"></strong>
+                         <i class="icon-infinity" data-bind="visible: maxNumberOfCustomAnalyzersPerDatabase() == null"></i>
+                    </div>
+                    <div class="name">Max custom sorters in cluster</div>
+                    <div>
+                         <strong data-bind="text: maxNumberOfCustomSortersPerCluster, visible: maxNumberOfCustomSortersPerCluster() != null"></strong>
+                         <i class="icon-infinity" data-bind="visible: maxNumberOfCustomSortersPerCluster() == null"></i>
+                    </div>
+                    <div class="name">Max custom analyzers in cluster</div>
+                    <div>
+                         <strong data-bind="text: maxNumberOfCustomAnalyzersPerCluster, visible: maxNumberOfCustomAnalyzersPerCluster() != null"></strong>
+                         <i class="icon-infinity" data-bind="visible: maxNumberOfCustomAnalyzersPerCluster() == null"></i>
+                    </div>
 
                     <a href="https://ravendb.net/features/replication/external-replication" target="_blank" class="d-contents"><h4>External Replication <i class="icon-newtab"></i></h4></a>
                     <div class="name">Immediate</div><div class="value"><i data-bind="attr: { class: licenseAttribute('HasExternalReplication') }"></i></div>
@@ -184,6 +248,7 @@
                     <div class="name">Cloud & Remote</div><div class="value"><i data-bind="attr: { class: licenseAttribute('HasCloudBackups') }"></i></div>
                     <div class="name">Snapshot backups</div><div class="value"><i data-bind="attr: { class: licenseAttribute('HasSnapshotBackups') }"></i></div>
                     <div class="name">Encrypted backups</div><div class="value"><i data-bind="attr: { class: licenseAttribute('HasEncryptedBackups') }"></i></div>
+                    <div class="name">Periodic backups</div><div class="value"><i data-bind="attr: { class: licenseAttribute('HasPeriodicBackup') }"></i></div>
 
                     <a href="https://ravendb.net/features#integration" target="_blank" class="d-contents"><h4>ETL <i class="icon-newtab"></i></h4></a>
                     <div class="name">SQL ETL</div><div class="value"><i data-bind="attr: { class: licenseAttribute('HasSqlEtl') }"></i></div>
@@ -195,6 +260,17 @@
                     <a href="https://ravendb.net/features/extensions/subscriptions" target="_blank" class="d-contents"><h4>Data Subscriptions <i class="icon-newtab"></i></h4></a>
                     <div class="name">Single-worker Data Subscriptions</div><div class="value"><i class="icon-checkmark"></i></div>
                     <div class="name">Concurrent-worker Data Subscriptions</div><div class="value"><i data-bind="attr: { class: licenseAttribute('HasConcurrentDataSubscriptions') }"></i></div>
+                    <div class="name">Revisions in subscriptions</div><div class="value"><i data-bind="attr: { class: licenseAttribute('HasRevisionsInSubscriptions') }"></i></div>
+                    <div class="name">Max subscriptions per database</div>
+                    <div>
+                         <strong data-bind="text: maxNumberOfSubscriptionsPerDatabase, visible: maxNumberOfSubscriptionsPerDatabase() != null"></strong>
+                         <i class="icon-infinity" data-bind="visible: maxNumberOfSubscriptionsPerDatabase() == null"></i>
+                    </div>
+                    <div class="name">Max subscriptions in cluster</div>
+                    <div>
+                         <strong data-bind="text: maxNumberOfSubscriptionsPerCluster, visible: maxNumberOfSubscriptionsPerCluster() != null"></strong>
+                         <i class="icon-infinity" data-bind="visible: maxNumberOfSubscriptionsPerCluster() == null"></i>
+                    </div>
                     
                     <a href="https://ravendb.net/features#security" target="_blank" class="d-contents"><h4>Security <i class="icon-newtab"></i></h4></a>
                     <div class="name">Certificates</div><div class="value"><i class="icon-checkmark"></i></div>
