@@ -59,7 +59,6 @@ import { FlexGrow } from "components/common/FlexGrow";
 import OngoingTaskAddModal from "./OngoingTaskAddModal";
 import { useAppSelector } from "components/store";
 import { licenseSelectors } from "components/common/shell/licenseSlice";
-import AccordionLicenseLimited from "components/common/AccordionLicenseLimited";
 import { useRavenLink } from "components/hooks/useRavenLink";
 
 interface OngoingTasksPageProps {
