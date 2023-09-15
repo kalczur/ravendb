@@ -17,7 +17,7 @@ export default {
 function commonInit() {
     const { accessManager, license } = mockStore;
     accessManager.with_securityClearance("ClusterAdmin");
-    license.with_Enterprise();
+    license.with_License();
 
     clusterTopologyManager.default.localNodeTag = ko.pureComputed(() => "A");
 }
@@ -167,7 +167,7 @@ export const LicenseLimits: ComponentStory<typeof IndexesPage> = () => {
     commonInit();
     configureDifferentIndexStates();
 
-    license.with_Community();
+    license.with_License({ Type: "Community" });
     license.with_LimitsUsage();
 
     return <IndexesPage db={db} />;
