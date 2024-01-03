@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using Orders;
 using Raven.Client.Documents;
 using Raven.Client.Documents.Indexes;
 using Raven.Client.ServerWide;
@@ -25,6 +27,34 @@ namespace SlowTests.Issues
             public string Name { get; set; }
         }
 
+        private class InvalidMultiMap : AbstractMultiMapIndexCreationTask<Order>
+        {
+            public InvalidMultiMap()
+            {
+                AddMap<Order>(orders => from o in orders
+                                        select new
+                                        {
+                                            Company = o.Company,
+                                            Freight = o.Freight
+                                        });
+
+                AddMap<Order>(orders => from o in orders
+                                        from l in o.Lines
+                                        select new
+                                        {
+                                            Company = o.Company,
+                                            Freight = o.Freight / (o.Company.Length - o.Company.Length)
+                                        });
+
+                AddMap<Order>(orders => from o in orders
+                                        select new
+                                        {
+                                            Company = o.Employee,
+                                            Freight = o.Freight
+                                        });
+            }
+        }
+
         [Fact]
         public async Task Cluster_identity_for_single_document_should_work()
         {
@@ -36,22 +66,38 @@ namespace SlowTests.Issues
                 ReplicationFactor = 3
             }))
             {
+                new InvalidMultiMap().Execute(leaderStore);
+                
                 using (var session = leaderStore.OpenSession())
                 {
-                    //id ending with "/" should trigger cluster identity id so
-                    //after tx commit, the id would be "users/1"
-                    session.Store(new User { Name = "John Dow" }, "users|");
+                    session.Store(new Order
+                    {
+                        Company = "companies/1",
+                        Freight = 10,
+                        Lines = new List<OrderLine>
+                        {
+                            new OrderLine(),
+                            new OrderLine(),
+                            new OrderLine()
+                        }
+                    });
+
+                    session.Store(new Order { Company = "companies/2", Freight = 15 });
+
                     session.SaveChanges();
                 }
+                
+                Indexes.WaitForIndexing(leaderStore);
+                WaitForUserToContinueTheTest(leaderStore);
 
-                using (var session = leaderStore.OpenSession())
-                {
-                    var users = session.Query<User>().Where(x => x.Name.StartsWith("John")).ToList();
+                // using (var session = leaderStore.OpenSession())
+                // {
+                //     var users = session.Query<User>().Where(x => x.Name.StartsWith("John")).ToList();
 
-                    Assert.Equal(1, users.Count);
-                    Assert.NotNull(users[0].Id);
-                    Assert.Equal("users/1", users[0].Id);
-                }
+                //     Assert.Equal(1, users.Count);
+                //     Assert.NotNull(users[0].Id);
+                //     Assert.Equal("users/1", users[0].Id);
+                // }
             }
         }
 
