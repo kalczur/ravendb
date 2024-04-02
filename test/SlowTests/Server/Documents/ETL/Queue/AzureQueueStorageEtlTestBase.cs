@@ -35,8 +35,13 @@ for (var i = 0; i < this.OrderLines.length; i++) {
     var line = this.OrderLines[i];
     orderData.TotalCost += line.Cost*line.Quantity;    
 }
-loadToOrders" + @"(orderData);
-";
+loadToOrders" + @"(orderData, {
+                                                            Id: id(this),
+                                                            PartitionKey: id(this),
+                                                            Type: 'com.github.users',
+                                                            Source: '/registrations/direct-signup'
+                                                     });
+output('test output')";
 
     protected QueueEtlConfiguration SetupQueueEtlToAzureQueueStorageOnline(DocumentStore store, string script,
         IEnumerable<string> collections, IEnumerable<EtlQueue> queues = null, bool applyToAllDocuments = false,
