@@ -6,7 +6,11 @@ namespace Raven.Client.Documents.Operations.ETL.Queue;
 
 public sealed class AzureQueueStorageConnectionSettings
 {
-    public Authentication Authentication;
+    public EntraId EntraId { get; set; }
+
+    public string ConnectionString { get; set; }
+
+    public bool Passwordless { get; set; }
 
     public string GetStorageUrl()
     {
@@ -18,22 +22,22 @@ public sealed class AzureQueueStorageConnectionSettings
     {
         string storageAccountName = "";
 
-        if (Authentication.ConnectionString != null)
+        if (ConnectionString != null)
         {
-            var accountNamePart = Authentication.ConnectionString.Split(';')
+            var accountNamePart = ConnectionString.Split(';')
                 .FirstOrDefault(part => part.StartsWith("AccountName=", StringComparison.OrdinalIgnoreCase));
 
             if (accountNamePart == null)
             {
                 throw new ArgumentException("Storage account name not found in the connection string.",
-                    nameof(Authentication.ConnectionString));
+                    nameof(ConnectionString));
             }
 
             storageAccountName = accountNamePart.Substring("AccountName=".Length);
         }
-        else if (Authentication.EntraId != null)
+        else if (EntraId != null)
         {
-            storageAccountName = Authentication.EntraId.StorageAccountName;
+            storageAccountName = EntraId.StorageAccountName;
         }
 
         return storageAccountName;
@@ -43,38 +47,22 @@ public sealed class AzureQueueStorageConnectionSettings
     {
         var json = new DynamicJsonValue
         {
-            [nameof(Authentication)] = Authentication == null
+            [nameof(ConnectionString)] = ConnectionString,
+            [nameof(Passwordless)] = Passwordless,
+            [nameof(EntraId)] = EntraId == null
                 ? null
                 : new DynamicJsonValue
                 {
-                    [nameof(Authentication.ConnectionString)] = Authentication.ConnectionString,
-                    [nameof(Authentication.Passwordless)] = Authentication.Passwordless,
-                    [nameof(Authentication.EntraId)] =
-                        Authentication.EntraId == null
-                            ? null
-                            : new DynamicJsonValue
-                            {
-                                [nameof(Authentication.EntraId.StorageAccountName)] =
-                                    Authentication?.EntraId?.StorageAccountName,
-                                [nameof(Authentication.EntraId.TenantId)] =
-                                    Authentication?.EntraId?.TenantId,
-                                [nameof(Authentication.EntraId.ClientId)] =
-                                    Authentication?.EntraId?.ClientId,
-                                [nameof(Authentication.EntraId.ClientSecret)] =
-                                    Authentication?.EntraId?.ClientSecret
-                            }
+                    [nameof(EntraId.StorageAccountName)] = EntraId?.StorageAccountName,
+                    [nameof(EntraId.TenantId)] = EntraId?.TenantId,
+                    [nameof(EntraId.ClientId)] = EntraId?.ClientId,
+                    [nameof(EntraId.ClientSecret)] = EntraId?.ClientSecret
                 }
         };
 
+
         return json;
     }
-}
-
-public sealed class Authentication
-{
-    public EntraId EntraId { get; set; }
-    public string ConnectionString { get; set; }
-    public bool Passwordless { get; set; }
 }
 
 public sealed class EntraId

@@ -94,24 +94,24 @@ public static class QueueBrokerConnectionHelper
     {
         QueueClient queueClient;
 
-        if (azureQueueStorageConnectionSettings.Authentication.ConnectionString != null)
+        if (azureQueueStorageConnectionSettings.ConnectionString != null)
         {
-            queueClient = new QueueClient(azureQueueStorageConnectionSettings.Authentication.ConnectionString,
+            queueClient = new QueueClient(azureQueueStorageConnectionSettings.ConnectionString,
                 queueName);
         }
 
-        else if (azureQueueStorageConnectionSettings.Authentication.EntraId != null)
+        else if (azureQueueStorageConnectionSettings.EntraId != null)
         {
             var queueUri = new Uri($"{azureQueueStorageConnectionSettings.GetStorageUrl()}{queueName}");
 
             queueClient = new QueueClient(
                 queueUri,
                 new ClientSecretCredential(
-                    azureQueueStorageConnectionSettings.Authentication.EntraId.TenantId,
-                    azureQueueStorageConnectionSettings.Authentication.EntraId.ClientId,
-                    azureQueueStorageConnectionSettings.Authentication.EntraId.ClientSecret));
+                    azureQueueStorageConnectionSettings.EntraId.TenantId,
+                    azureQueueStorageConnectionSettings.EntraId.ClientId,
+                    azureQueueStorageConnectionSettings.EntraId.ClientSecret));
         }
-        else if(azureQueueStorageConnectionSettings.Authentication.Passwordless)
+        else if(azureQueueStorageConnectionSettings.Passwordless)
         {
             var queueUri = new Uri($"{azureQueueStorageConnectionSettings.GetStorageUrl()}{queueName}");
             queueClient = new QueueClient(queueUri, new DefaultAzureCredential());
@@ -129,22 +129,22 @@ public static class QueueBrokerConnectionHelper
     {
         QueueServiceClient queueServiceClient = null;
 
-        if (azureQueueStorageConnectionSettings.Authentication.ConnectionString != null)
+        if (azureQueueStorageConnectionSettings.ConnectionString != null)
         {
             queueServiceClient =
-                new QueueServiceClient(azureQueueStorageConnectionSettings.Authentication.ConnectionString);
+                new QueueServiceClient(azureQueueStorageConnectionSettings.ConnectionString);
         }
 
-        else if (azureQueueStorageConnectionSettings.Authentication.EntraId != null)
+        else if (azureQueueStorageConnectionSettings.EntraId != null)
         {
             var queueUri = new Uri(azureQueueStorageConnectionSettings.GetStorageUrl());
 
             queueServiceClient = new QueueServiceClient(
                 queueUri,
                 new ClientSecretCredential(
-                    azureQueueStorageConnectionSettings.Authentication.EntraId.TenantId,
-                    azureQueueStorageConnectionSettings.Authentication.EntraId.ClientId,
-                    azureQueueStorageConnectionSettings.Authentication.EntraId.ClientSecret));
+                    azureQueueStorageConnectionSettings.EntraId.TenantId,
+                    azureQueueStorageConnectionSettings.EntraId.ClientId,
+                    azureQueueStorageConnectionSettings.EntraId.ClientSecret));
         }
 
         return queueServiceClient;

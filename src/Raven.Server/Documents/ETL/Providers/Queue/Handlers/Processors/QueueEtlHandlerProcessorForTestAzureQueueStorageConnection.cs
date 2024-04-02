@@ -28,9 +28,8 @@ internal sealed class
         try
         {
             string authenticationJson = await new StreamReader(HttpContext.Request.Body).ReadToEndAsync();
-            Authentication authentication = JsonConvert.DeserializeObject<Authentication>(authenticationJson);
-
-            var connectionSettings = new AzureQueueStorageConnectionSettings() { Authentication = authentication };
+            AzureQueueStorageConnectionSettings connectionSettings =
+                JsonConvert.DeserializeObject<AzureQueueStorageConnectionSettings>(authenticationJson);
 
             QueueServiceClient client =
                 QueueBrokerConnectionHelper.CreateAzureQueueStorageServiceClient(connectionSettings);

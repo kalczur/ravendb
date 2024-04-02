@@ -76,10 +76,7 @@ output('test output')";
                 BrokerType = QueueBrokerType.AzureQueueStorage,
                 AzureQueueStorageConnectionSettings = new AzureQueueStorageConnectionSettings
                 {
-                    Authentication = new global::Raven.Client.Documents.Operations.ETL.Queue.Authentication
-                    {
-                        ConnectionString = ConnectionString
-                    }
+                    ConnectionString = ConnectionString
                 }
             });
         return config;

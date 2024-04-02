@@ -54,7 +54,7 @@ namespace Raven.Server.Config.Categories
         public TimeSetting KafkaInitTransactionsTimeout { get; set; }
         
         [Description("Lifespan of a message in the queue")]
-        [DefaultValue(604800)]
+        [DefaultValue(604800)] // 7 days (Azure default)
         [TimeUnit(TimeUnit.Seconds)]
         [ConfigurationEntry("ETL.Queue.AzureQueueStorage.TimeToLiveInSec", ConfigurationEntryScope.ServerWideOrPerDatabase)]
         public TimeSetting AzureQueueStorageTimeToLive{ get; set; }

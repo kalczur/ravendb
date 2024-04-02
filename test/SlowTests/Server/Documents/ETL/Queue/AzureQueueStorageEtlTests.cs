@@ -209,14 +209,7 @@ public class AzureQueueStorageEtlTests : AzureQueueStorageEtlTestBase
             Name = "Foo",
             BrokerType = QueueBrokerType.AzureQueueStorage,
             AzureQueueStorageConnectionSettings =
-                new AzureQueueStorageConnectionSettings()
-                {
-                    Authentication =
-                        new global::Raven.Client.Documents.Operations.ETL.Queue.Authentication()
-                        {
-                            ConnectionString = ConnectionString
-                        }
-                }
+                new AzureQueueStorageConnectionSettings { ConnectionString = ConnectionString }
         });
 
         List<string> errors;
@@ -251,14 +244,7 @@ public class AzureQueueStorageEtlTests : AzureQueueStorageEtlTestBase
                     Name = "simulate",
                     BrokerType = QueueBrokerType.AzureQueueStorage,
                     AzureQueueStorageConnectionSettings =
-                        new AzureQueueStorageConnectionSettings()
-                        {
-                            Authentication =
-                                new global::Raven.Client.Documents.Operations.ETL.Queue.Authentication()
-                                {
-                                    ConnectionString = ConnectionString
-                                }
-                        }
+                        new AzureQueueStorageConnectionSettings { ConnectionString = ConnectionString }
                 }));
             Assert.NotNull(result1.RaftCommandIndex);
 
@@ -374,7 +360,7 @@ public class AzureQueueStorageEtlTests : AzureQueueStorageEtlTestBase
             Assert.True(destinationRecord.QueueEtls[0].Queues[0].DeleteProcessedDocuments);
         }
     }
-    
+
     [RavenFact(RavenTestCategory.BackupExportImport | RavenTestCategory.Sharding | RavenTestCategory.Etl)]
     public async Task ShouldSkipUnsupportedFeaturesInShardingOnImport_RabbitMqEtl()
     {
@@ -382,20 +368,15 @@ public class AzureQueueStorageEtlTests : AzureQueueStorageEtlTestBase
         using (var dstStore = Sharding.GetDocumentStore())
         {
             var config = SetupQueueEtlToAzureQueueStorageOnline(srcStore,
-                DefaultScript, DefaultCollections, new List<EtlQueue>()
-                {
-                    new()
-                    {
-                        Name = "Orders",
-                        DeleteProcessedDocuments = true
-                    }
-                }, connectionString: ConnectionString);
+                DefaultScript, DefaultCollections,
+                new List<EtlQueue>() { new() { Name = "Orders", DeleteProcessedDocuments = true } },
+                connectionString: ConnectionString);
 
             var record = await srcStore.Maintenance.Server.SendAsync(new GetDatabaseRecordOperation(srcStore.Database));
 
             Assert.NotNull(record.QueueEtls);
             Assert.Equal(1, record.QueueEtls.Count);
-            
+
             var exportFile = GetTempFileName();
 
             var exportOperation = await srcStore.Smuggler.ExportAsync(new DatabaseSmugglerExportOptions(), exportFile);
