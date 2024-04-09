@@ -36,8 +36,7 @@ for (var i = 0; i < this.OrderLines.length; i++) {
     orderData.TotalCost += line.Cost*line.Quantity;    
 }
 loadToOrders" + @"(orderData, {
-                                                            Id: id(this),
-                                                            PartitionKey: id(this),
+                                                            Id: id(this),                                                            
                                                             Type: 'com.github.users',
                                                             Source: '/registrations/direct-signup'
                                                      });
@@ -51,7 +50,7 @@ output('test output')";
         bool skipAutomaticQueueDeclaration = false)
     {
         var connectionStringName = $"{store.Database}@{store.Urls.First()} to AzureQueueStorage";
-
+        
         Transformation transformation = new Transformation
         {
             Name = transformationName ?? $"ETL : {connectionStringName}",
@@ -68,7 +67,7 @@ output('test output')";
             BrokerType = QueueBrokerType.AzureQueueStorage,
             SkipAutomaticQueueDeclaration = skipAutomaticQueueDeclaration
         };
-
+        
         Etl.AddEtl(store, config,
             new QueueConnectionString
             {
