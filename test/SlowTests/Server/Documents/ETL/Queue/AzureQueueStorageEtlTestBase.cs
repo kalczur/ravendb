@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Azure.Storage.Queues;
 using Azure.Storage.Queues.Models;
 using Raven.Client.Documents;
@@ -92,5 +93,18 @@ output('test output')";
         var messages = queueClient.ReceiveMessages(numberOfMessages);
         messages.Value.ToList().ForEach(message => queueClient.DeleteMessage(message.MessageId, message.PopReceipt));
         return messages.Value.ToArray();
+    }
+    
+    protected string GenerateLargeString()
+    {
+        StringBuilder builder = new StringBuilder();
+
+        // Append characters to the StringBuilder until it's larger than 64KB
+        while (builder.Length <= 64 * 1024)
+        {
+            builder.Append("Lorem ipsum dolor sit amet, consectetur adipiscing elit.");
+        }
+
+        return builder.ToString();
     }
 }

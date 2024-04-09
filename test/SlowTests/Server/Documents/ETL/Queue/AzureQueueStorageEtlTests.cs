@@ -61,6 +61,38 @@ public class AzureQueueStorageEtlTests : AzureQueueStorageEtlTestBase
             Assert.Equal(order.TotalCost, 10);
         }
     }
+    
+    [Fact]
+    public async Task Simple_script_large_message_error_expected()
+    {
+        using (var store = GetDocumentStore())
+        {
+            var config = SetupQueueEtlToAzureQueueStorageOnline(store,
+                @$"loadToUsers(this)", new[] { "users" },
+                new[] { new EtlQueue { Name = $"users" } });
+            
+            using (var session = store.OpenSession())
+            {
+                session.Store(new User()
+                {
+                    Id = "users/1-A",
+                    Name = GenerateLargeString()
+                });
+                session.SaveChanges();
+            }
+            
+            var alert = await AssertWaitForNotNullAsync(() =>
+            {
+                Etl.TryGetLoadError(store.Database, config, out var error);
+
+                return Task.FromResult(error);
+            }, timeout: (int)TimeSpan.FromMinutes(1).TotalMilliseconds);
+
+            Assert.StartsWith(
+                "Raven.Server.Exceptions.ETL.QueueEtl.QueueLoadException: Failed to deliver message, Azure error code: 'RequestBodyTooLarge'",
+                alert.Error);
+        }
+    }
 
     [Fact]
     public void Error_if_script_does_not_contain_any_loadTo_method()
@@ -362,7 +394,7 @@ public class AzureQueueStorageEtlTests : AzureQueueStorageEtlTestBase
     }
 
     [RavenFact(RavenTestCategory.BackupExportImport | RavenTestCategory.Sharding | RavenTestCategory.Etl)]
-    public async Task ShouldSkipUnsupportedFeaturesInShardingOnImport_RabbitMqEtl()
+    public async Task ShouldSkipUnsupportedFeaturesInShardingOnImport_AzureQueueStorageEtl()
     {
         using (var srcStore = GetDocumentStore())
         using (var dstStore = Sharding.GetDocumentStore())
