@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using Sparrow.Json.Parsing;
 
@@ -12,6 +11,42 @@ public sealed class AzureQueueStorageConnectionSettings
     public string ConnectionString { get; set; }
 
     public Passwordless Passwordless { get; set; }
+
+    public bool IsValidConnection()
+    {
+        if (IsOnlyOneConnectionProvided() == false)
+        {
+            return false;
+        }
+
+        if (EntraId != null && EntraId.IsValid() == false)
+        {
+            return false;
+        }
+
+        if (Passwordless != null && Passwordless.IsValid() == false)
+        {
+            return false;
+        }
+
+        return true;
+    }
+    
+    private bool IsOnlyOneConnectionProvided()
+    {
+        int count = 0;
+
+        if (EntraId != null) 
+            count++;
+    
+        if (!string.IsNullOrWhiteSpace(ConnectionString))
+            count++;
+
+        if (Passwordless != null) 
+            count++;
+
+        return count == 1;
+    }
 
     public string GetStorageUrl()
     {
@@ -106,9 +141,22 @@ public sealed class EntraId
     public string TenantId { get; set; }
     public string ClientId { get; set; }
     public string ClientSecret { get; set; }
+
+    public bool IsValid()
+    {
+        return !string.IsNullOrWhiteSpace(StorageAccountName) &&
+               !string.IsNullOrWhiteSpace(TenantId) &&
+               !string.IsNullOrWhiteSpace(ClientId) &&
+               !string.IsNullOrWhiteSpace(ClientSecret);
+    }
 }
 
 public sealed class Passwordless
 {
     public string StorageAccountName { get; set; }
+
+    public bool IsValid()
+    {
+        return !string.IsNullOrWhiteSpace(StorageAccountName);
+    }
 }

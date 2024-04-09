@@ -34,8 +34,7 @@ public sealed class QueueConnectionString : ConnectionString
                 }
                 break;
             case QueueBrokerType.AzureQueueStorage:
-                //todo djordje: better validation, at least one auth method
-                if (AzureQueueStorageConnectionSettings == null)
+                if (AzureQueueStorageConnectionSettings.IsValidConnection() == false)
                 {
                     errors.Add($"{nameof(AzureQueueStorageConnectionSettings)} has no valid setting.");
                 }

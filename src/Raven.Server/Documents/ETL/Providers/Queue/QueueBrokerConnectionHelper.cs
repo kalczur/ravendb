@@ -92,7 +92,7 @@ public static class QueueBrokerConnectionHelper
     public static QueueClient CreateAzureQueueStorageClient(
         AzureQueueStorageConnectionSettings azureQueueStorageConnectionSettings, string queueName)
     {
-        QueueClient queueClient;
+        QueueClient queueClient = null;
 
         if (azureQueueStorageConnectionSettings.ConnectionString != null)
         {
@@ -115,10 +115,6 @@ public static class QueueBrokerConnectionHelper
         {
             var queueUri = new Uri($"{azureQueueStorageConnectionSettings.GetStorageUrl()}{queueName}");
             queueClient = new QueueClient(queueUri, new DefaultAzureCredential());
-        }
-        else
-        {
-            throw new NotSupportedException("Provided authentication method is not supported");
         }
 
         return queueClient;
