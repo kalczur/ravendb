@@ -22,12 +22,16 @@ class AzureQueueStorageConnectionStringModel {
         });
     }
     
-    toDto(): Raven.Client.Documents.Operations.ETL.Queue.Authentication {
+    toDto(): Raven.Client.Documents.Operations.ETL.Queue.AzureQueueStorageConnectionSettings {
         return {
             ConnectionString: this.connectionString(),
             EntraId: null,
-            Passwordless: false
+            Passwordless: null
         }
+    }
+    
+    update(connectionString: string) {
+        this.connectionString(connectionString);
     }
 }
 
@@ -67,7 +71,7 @@ class AzureQueueStorageEntraIdModel {
         });
     }
     
-    toDto(): Raven.Client.Documents.Operations.ETL.Queue.Authentication {
+    toDto(): Raven.Client.Documents.Operations.ETL.Queue.AzureQueueStorageConnectionSettings {
         return {
             ConnectionString: null,
             EntraId: {
@@ -76,7 +80,7 @@ class AzureQueueStorageEntraIdModel {
                 StorageAccountName: this.storageAccountName(),
                 TenantId: this.tenantId(),
             },
-            Passwordless: false
+            Passwordless: null
         }
     }
 
@@ -89,17 +93,33 @@ class AzureQueueStorageEntraIdModel {
 }
 
 class AzureQueueStoragePasswordlessModel {
+
+    storageAccountName = ko.observable<string>();
     
     onChange(action: () => void) {
-        // empty by design
+        this.storageAccountName.subscribe(action);
+    }
+
+    initValidation(condition: () => boolean) {
+        this.storageAccountName.extend({
+            required: {
+                onlyIf: condition
+            }
+        });
     }
     
-    toDto(): Raven.Client.Documents.Operations.ETL.Queue.Authentication {
+    toDto(): Raven.Client.Documents.Operations.ETL.Queue.AzureQueueStorageConnectionSettings {
         return {
             ConnectionString: null,
             EntraId: null,
-            Passwordless: true
+            Passwordless: {
+                StorageAccountName: this.storageAccountName()
+            }
         }
+    }
+
+    update(dto: Raven.Client.Documents.Operations.ETL.Queue.Passwordless) {
+        this.storageAccountName(dto.StorageAccountName);
     }
 }
 
@@ -155,14 +175,15 @@ class connectionStringAzureQueueStorageModel extends connectionStringModel {
         super.update(dto);
 
         const settings = dto.AzureQueueStorageConnectionSettings;
-        if (settings.Authentication.Passwordless) {
+        if (settings.Passwordless) {
             this.authenticationType("passwordless");
-        } else if (settings.Authentication.ConnectionString) {
+            this.passwordlessModel.update(settings.Passwordless);
+        } else if (settings.ConnectionString) {
             this.authenticationType("connectionString");
-            this.connectionStringModel.connectionString(settings.Authentication.ConnectionString);
-        } else if (settings.Authentication.EntraId) {
+            this.connectionStringModel.update(settings.ConnectionString);
+        } else if (settings.EntraId) {
             this.authenticationType("entraId");
-            this.entraIdModel.update(settings.Authentication.EntraId);
+            this.entraIdModel.update(settings.EntraId);
         }
     }
 
@@ -171,6 +192,7 @@ class connectionStringAzureQueueStorageModel extends connectionStringModel {
         
         this.connectionStringModel.initValidation(() => this.authenticationType() === "connectionString");
         this.entraIdModel.initValidation(() => this.authenticationType() === "entraId");
+        this.passwordlessModel.initValidation(() => this.authenticationType() === "passwordless");
 
         this.validationGroup = ko.validatedObservable({
             connectionStringName: this.connectionStringName,
@@ -179,6 +201,7 @@ class connectionStringAzureQueueStorageModel extends connectionStringModel {
             entraIdClientSecret: this.entraIdModel.clientSecret,
             entraIdStorageAccountName: this.entraIdModel.storageAccountName,
             entraIdTenantId: this.entraIdModel.tenantId,
+            passwordLessStorageAccountName: this.passwordlessModel.storageAccountName,
         });
     }
 
@@ -191,16 +214,14 @@ class connectionStringAzureQueueStorageModel extends connectionStringModel {
             RabbitMqConnectionSettings: null,
             KafkaConnectionSettings: null,
             AzureQueueStorageConnectionSettings: {
-                Authentication: {
-                    ConnectionString: "",
-                    EntraId: null,
-                    Passwordless: false,
-                }
+                ConnectionString: "",
+                EntraId: null,
+                Passwordless: null,
             },
         }, true, []);
     }
     
-    private authenticationToDto(): Raven.Client.Documents.Operations.ETL.Queue.Authentication {
+    private authenticationToDto(): Raven.Client.Documents.Operations.ETL.Queue.AzureQueueStorageConnectionSettings {
         const authenticationType = this.authenticationType();
         switch (authenticationType) {
             case "connectionString": 
@@ -221,9 +242,7 @@ class connectionStringAzureQueueStorageModel extends connectionStringModel {
             Name: this.connectionStringName(),
             RabbitMqConnectionSettings: null,
             KafkaConnectionSettings: null,
-            AzureQueueStorageConnectionSettings: {
-                Authentication: this.authenticationToDto()
-            },
+            AzureQueueStorageConnectionSettings: this.authenticationToDto()
         };
     }
 

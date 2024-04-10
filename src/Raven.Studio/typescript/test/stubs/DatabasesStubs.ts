@@ -534,11 +534,9 @@ export class DatabasesStubs {
                     KafkaConnectionSettings: null,
                     RabbitMqConnectionSettings: null,
                     AzureQueueStorageConnectionSettings: {
-                        Authentication: {
-                            ConnectionString: "some-connection-string",
-                            EntraId: null,
-                            Passwordless: false,
-                        },
+                        ConnectionString: "some-connection-string",
+                        EntraId: null,
+                        Passwordless: null,
                     },
                 },
             },

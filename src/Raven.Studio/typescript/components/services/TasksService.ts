@@ -120,7 +120,7 @@ export default class TasksService {
 
     async testAzureQueueStorageServerConnection(
         databaseName: string,
-        authentication: Raven.Client.Documents.Operations.ETL.Queue.Authentication
+        authentication: Raven.Client.Documents.Operations.ETL.Queue.AzureQueueStorageConnectionSettings
     ) {
         return new testAzureQueueStorageServerConnectionCommand(databaseName, authentication).execute();
     }

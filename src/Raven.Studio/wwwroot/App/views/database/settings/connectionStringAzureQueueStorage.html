@@ -53,3 +53,12 @@
         </div>
     </div>
 </div>
+
+<div data-bind="visible: authenticationType() === 'passwordless', with: passwordlessModel">
+    <div class="form-group" data-bind="validationElement: storageAccountName">
+        <label class="control-label">Storage Account Name<i class="required"></i></label>
+        <div class="flex-grow">
+            <input class="form-control" rows="2" data-bind="textInput: storageAccountName" />
+        </div>
+    </div>
+</div>

@@ -4,9 +4,9 @@ import database = require("models/resources/database");
 
 class testAzureQueueStorageServerConnectionCommand extends commandBase {
     private readonly db: database | string;
-    private readonly authentication: Raven.Client.Documents.Operations.ETL.Queue.Authentication; 
+    private readonly authentication: Raven.Client.Documents.Operations.ETL.Queue.AzureQueueStorageConnectionSettings; 
 
-    constructor(db: database | string, authentication: Raven.Client.Documents.Operations.ETL.Queue.Authentication) {
+    constructor(db: database | string, authentication: Raven.Client.Documents.Operations.ETL.Queue.AzureQueueStorageConnectionSettings) {
         super();
         this.db = db;
         this.authentication = authentication;
