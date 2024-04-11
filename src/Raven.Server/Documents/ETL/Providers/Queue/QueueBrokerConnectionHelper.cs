@@ -142,6 +142,11 @@ public static class QueueBrokerConnectionHelper
                     azureQueueStorageConnectionSettings.EntraId.ClientId,
                     azureQueueStorageConnectionSettings.EntraId.ClientSecret));
         }
+        else if(azureQueueStorageConnectionSettings.Passwordless != null)
+        {
+            var queueUri = new Uri($"{azureQueueStorageConnectionSettings.GetStorageUrl()}");
+            queueServiceClient = new QueueServiceClient(queueUri, new DefaultAzureCredential());
+        }
 
         return queueServiceClient;
     }

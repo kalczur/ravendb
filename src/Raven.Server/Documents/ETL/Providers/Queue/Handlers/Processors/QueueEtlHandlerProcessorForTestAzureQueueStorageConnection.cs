@@ -34,7 +34,7 @@ internal sealed class
             QueueServiceClient client =
                 QueueBrokerConnectionHelper.CreateAzureQueueStorageServiceClient(connectionSettings);
 
-            await client.GetStatisticsAsync();
+            await client.GetPropertiesAsync();
 
             DynamicJsonValue result = new() { [nameof(NodeConnectionTestResult.Success)] = true, };
             using (ServerStore.ContextPool.AllocateOperationContext(out JsonOperationContext context))
