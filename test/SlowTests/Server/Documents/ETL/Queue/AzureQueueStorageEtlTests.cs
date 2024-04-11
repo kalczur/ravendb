@@ -101,7 +101,7 @@ public class AzureQueueStorageEtlTests : AzureQueueStorageEtlTestBase
         {
             Name = "test",
             ConnectionStringName = "test",
-            BrokerType = QueueBrokerType.RabbitMq,
+            BrokerType = QueueBrokerType.AzureQueueStorage,
             Transforms =
             {
                 new Transformation
@@ -114,9 +114,9 @@ public class AzureQueueStorageEtlTests : AzureQueueStorageEtlTestBase
         config.Initialize(new QueueConnectionString
         {
             Name = "Foo",
-            BrokerType = QueueBrokerType.RabbitMq,
-            RabbitMqConnectionSettings =
-                new RabbitMqConnectionSettings() { ConnectionString = "amqp://guest:guest@localhost:5672/" }
+            BrokerType = QueueBrokerType.AzureQueueStorage,
+            AzureQueueStorageConnectionSettings =
+                new AzureQueueStorageConnectionSettings() { ConnectionString = ConnectionString }
         });
 
         List<string> errors;

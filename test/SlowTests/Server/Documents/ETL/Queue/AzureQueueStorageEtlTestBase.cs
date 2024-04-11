@@ -107,4 +107,21 @@ output('test output')";
 
         return builder.ToString();
     }
+    
+    private void CleanupQueues()
+    {
+        QueueServiceClient client = new(ConnectionString);
+        var queues = client.GetQueues();
+
+        foreach (var queue in queues)
+        {
+            client.DeleteQueue(queue.Name);
+        }
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        CleanupQueues();
+    }
 }
