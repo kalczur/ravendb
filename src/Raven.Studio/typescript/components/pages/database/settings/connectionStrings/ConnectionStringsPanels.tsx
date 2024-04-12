@@ -59,6 +59,8 @@ function getTypeLabel(type: StudioEtlType): string {
             return "RavenDB";
         case "Sql":
             return "SQL";
+        case "AzureQueueStorage":
+            return "Azure Queue Storage";
         default:
             return type;
     }

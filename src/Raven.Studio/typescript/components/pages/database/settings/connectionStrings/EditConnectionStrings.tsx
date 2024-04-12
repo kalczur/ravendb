@@ -25,6 +25,7 @@ import useConnectionStringsLicense, { ConnectionStringsLicenseFeatures } from ".
 import assertUnreachable from "components/utils/assertUnreachable";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import { useAppSelector } from "components/store";
+import AzureQueueStorageConnectionString from "components/pages/database/settings/connectionStrings/editForms/AzureQueueStorageConnectionString";
 
 export interface EditConnectionStringsProps {
     initialConnection?: Connection;
@@ -181,7 +182,7 @@ function getEditConnectionStringComponent(type: StudioEtlType): (props: EditConn
         case "RabbitMQ":
             return RabbitMqConnectionString;
         case "AzureQueueStorage":
-            throw new Error("Not implemeted"); //TODO:
+            return AzureQueueStorageConnectionString;
         default:
             return null;
     }

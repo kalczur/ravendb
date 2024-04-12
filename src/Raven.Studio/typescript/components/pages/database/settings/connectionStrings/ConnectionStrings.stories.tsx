@@ -10,10 +10,6 @@ import { SharedStubs } from "test/stubs/SharedStubs";
 export default {
     title: "Pages/Database/Settings",
     decorators: [withStorybookContexts, withBootstrap5],
-    argTypes: {
-        licenseType: licenseArgType,
-        databaseAccess: databaseAccessArgType,
-    },
 } satisfies Meta;
 
 interface DefaultConnectionStringsProps {
@@ -82,6 +78,10 @@ export const DefaultConnectionStrings: StoryObj<DefaultConnectionStringsProps> =
         hasOlapEtl: true,
         hasElasticSearchEtl: true,
         hasQueueEtl: true,
+    },
+    argTypes: {
+        licenseType: licenseArgType,
+        databaseAccess: databaseAccessArgType,
     },
 };
 

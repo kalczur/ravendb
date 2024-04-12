@@ -7,7 +7,7 @@ import {
     ElasticSearchConnection,
     KafkaConnection,
     RabbitMqConnection,
-    //TODO: azure
+    AzureQueueStorageConnection,
     OlapConnection,
     ConnectionFormData,
 } from "../connectionStringsTypes";
@@ -104,7 +104,57 @@ export function mapRabbitMqStringToDto(connection: RabbitMqConnection): Connecti
         },
     };
 }
-//TODO: map azure
+
+export function mapAzureQueueStorageConnectionStringSettingsToDto(
+    connection: Omit<AzureQueueStorageConnection, "type" | "usedByTasks">
+): Raven.Client.Documents.Operations.ETL.Queue.AzureQueueStorageConnectionSettings {
+    switch (connection.authType) {
+        case "connectionString": {
+            const connectionSettings = connection.settings[connection.authType];
+            return {
+                ConnectionString: connectionSettings.connectionStringValue,
+                EntraId: null,
+                Passwordless: null,
+            };
+        }
+        case "entraId": {
+            const connectionSettings = connection.settings[connection.authType];
+            return {
+                ConnectionString: null,
+                EntraId: {
+                    StorageAccountName: connectionSettings.storageAccountName,
+                    TenantId: connectionSettings.tenantId,
+                    ClientId: connectionSettings.clientId,
+                    ClientSecret: connectionSettings.clientSecret,
+                },
+                Passwordless: null,
+            };
+        }
+        case "passwordless": {
+            const connectionSettings = connection.settings[connection.authType];
+            return {
+                ConnectionString: null,
+                EntraId: null,
+                Passwordless: {
+                    StorageAccountName: connectionSettings.storageAccountName,
+                },
+            };
+        }
+        default:
+            return assertUnreachable(connection.authType);
+    }
+}
+
+export function mapAzureQueueStorageConnectionStringToDto(
+    connection: AzureQueueStorageConnection
+): ConnectionStringDto {
+    return {
+        Type: "Queue",
+        BrokerType: "AzureQueueStorage",
+        Name: connection.name,
+        AzureQueueStorageConnectionSettings: mapAzureQueueStorageConnectionStringSettingsToDto(connection),
+    };
+}
 
 export function mapConnectionStringToDto(connection: Connection): ConnectionStringDto {
     const type = connection.type;
@@ -123,7 +173,7 @@ export function mapConnectionStringToDto(connection: Connection): ConnectionStri
         case "RabbitMQ":
             return mapRabbitMqStringToDto(connection);
         case "AzureQueueStorage":
-            throw new Error("NOT IMPLETED"); //TODO:
+            return mapAzureQueueStorageConnectionStringToDto(connection);
         default:
             return assertUnreachable(type);
     }

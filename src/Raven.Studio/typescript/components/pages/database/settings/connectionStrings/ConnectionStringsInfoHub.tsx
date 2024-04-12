@@ -36,8 +36,10 @@ export function ConnectionStringsInfoHub() {
                 featureName: defaultFeatureAvailability[5].featureName,
                 value: features.hasQueueEtl,
             },
-
-            //TODO: azure
+            {
+                featureName: defaultFeatureAvailability[6].featureName,
+                value: features.hasQueueEtl,
+            },
         ],
     });
 
@@ -119,5 +121,11 @@ const defaultFeatureAvailability: FeatureAvailabilityData[] = [
         professional: { value: false },
         enterprise: { value: true },
     },
-    //TODO: azure
+    {
+        featureName: "Azure Queue Storage ETL",
+        featureIcon: "azure-queue-storage-etl",
+        community: { value: false },
+        professional: { value: false },
+        enterprise: { value: true },
+    },
 ];

@@ -9,7 +9,7 @@ import {
     mapKafkaConnectionsFromDto,
     mapOlapConnectionsFromDto,
     mapRabbitMqConnectionsFromDto,
-    //TODO azure
+    mapAzureQueueStorageConnectionsFromDto,
     mapRavenConnectionsFromDto,
     mapSqlConnectionsFromDto,
 } from "./connectionStringsMapsFromDto";
@@ -111,7 +111,10 @@ export const connectionStringsSlice = createSlice({
                     ongoingTasks
                 );
 
-                //TODO: map azure
+                connections.AzureQueueStorage = mapAzureQueueStorageConnectionsFromDto(
+                    connectionStringsDto.QueueConnectionStrings,
+                    ongoingTasks
+                );
 
                 state.loadStatus = "success";
 

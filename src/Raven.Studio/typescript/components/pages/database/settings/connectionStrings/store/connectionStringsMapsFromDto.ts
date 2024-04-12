@@ -5,7 +5,7 @@ import {
     KafkaConnection,
     OlapConnection,
     RabbitMqConnection,
-    //TODO: azure
+    AzureQueueStorageConnection,
     RavenConnection,
     SqlConnection,
 } from "../connectionStringsTypes";
@@ -214,4 +214,49 @@ export function mapRabbitMqConnectionsFromDto(
         );
 }
 
-//TODO: map azure
+function getAzureQueueStorageAuthType(dto: QueueConnectionStringDto): AzureQueueStorageAuthenticationType {
+    if (dto.AzureQueueStorageConnectionSettings.ConnectionString) {
+        return "connectionString";
+    }
+    if (dto.AzureQueueStorageConnectionSettings.EntraId) {
+        return "entraId";
+    }
+    if (dto.AzureQueueStorageConnectionSettings.Passwordless) {
+        return "passwordless";
+    }
+}
+
+export function mapAzureQueueStorageConnectionsFromDto(
+    connections: Record<string, QueueConnectionStringDto>,
+    ongoingTasks: OngoingTaskForConnection[]
+): AzureQueueStorageConnection[] {
+    const type: AzureQueueStorageConnection["type"] = "AzureQueueStorage";
+
+    return Object.values(connections)
+        .filter((x) => x.BrokerType === "AzureQueueStorage")
+        .map(
+            (connection) =>
+                ({
+                    type,
+                    name: connection.Name,
+                    authType: getAzureQueueStorageAuthType(connection),
+                    settings: {
+                        connectionString: {
+                            connectionStringValue: connection.AzureQueueStorageConnectionSettings.ConnectionString,
+                        },
+                        entraId: {
+                            clientId: connection.AzureQueueStorageConnectionSettings.EntraId?.ClientId,
+                            clientSecret: connection.AzureQueueStorageConnectionSettings.EntraId?.ClientSecret,
+                            storageAccountName:
+                                connection.AzureQueueStorageConnectionSettings.EntraId?.StorageAccountName,
+                            tenantId: connection.AzureQueueStorageConnectionSettings.EntraId?.TenantId,
+                        },
+                        passwordless: {
+                            storageAccountName:
+                                connection.AzureQueueStorageConnectionSettings.Passwordless?.StorageAccountName,
+                        },
+                    },
+                    usedByTasks: getConnectionStringUsedTasks(ongoingTasks, type, connection.Name),
+                }) satisfies AzureQueueStorageConnection
+        );
+}

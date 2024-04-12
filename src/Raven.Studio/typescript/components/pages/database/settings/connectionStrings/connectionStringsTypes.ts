@@ -2,6 +2,8 @@ import ElasticSearchConnectionStringDto = Raven.Client.Documents.Operations.ETL.
 import OlapConnectionStringDto = Raven.Client.Documents.Operations.ETL.OLAP.OlapConnectionString;
 import QueueConnectionStringDto = Raven.Client.Documents.Operations.ETL.Queue.QueueConnectionString;
 import RavenConnectionStringDto = Raven.Client.Documents.Operations.ETL.RavenConnectionString;
+import AzureQueueStorageConnectionSettingsDto = Raven.Client.Documents.Operations.ETL.Queue.AzureQueueStorageConnectionSettings;
+
 type SqlConnectionStringDto = SqlConnectionString;
 import { FormDestinations } from "components/common/formDestinations/utils/formDestinationsTypes";
 
@@ -68,7 +70,21 @@ export interface RabbitMqConnection extends ConnectionBase {
 
 export interface AzureQueueStorageConnection extends ConnectionBase {
     type: Extract<StudioEtlType, "AzureQueueStorage">;
-    connectionString?: string; //TODO: other props
+    authType?: AzureQueueStorageAuthenticationType;
+    settings?: {
+        connectionString?: {
+            connectionStringValue?: string;
+        };
+        entraId?: {
+            clientId?: string;
+            clientSecret?: string;
+            storageAccountName?: string;
+            tenantId?: string;
+        };
+        passwordless?: {
+            storageAccountName?: string;
+        };
+    };
 }
 
 export type Connection =
@@ -86,6 +102,7 @@ export type ConnectionStringDto = Partial<
     | QueueConnectionStringDto
     | RavenConnectionStringDto
     | SqlConnectionStringDto
+    | AzureQueueStorageConnectionSettingsDto
 >;
 
 export interface EditConnectionStringFormProps {
