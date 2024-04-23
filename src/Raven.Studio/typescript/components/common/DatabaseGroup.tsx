@@ -1,10 +1,8 @@
-﻿import React, { HTMLAttributes, ReactNode, useCallback } from "react";
+﻿import React, { HTMLAttributes, ReactNode } from "react";
 
 import classNames from "classnames";
 import { NodeInfo } from "components/models/databases";
-import app from "durandal/app";
-import showDataDialog from "viewmodels/common/showDataDialog";
-import { Badge } from "reactstrap";
+import { Badge, Button, Modal, ModalBody, ModalFooter, ModalHeader } from "reactstrap";
 import genUtils from "common/generalUtils";
 import assertUnreachable from "components/utils/assertUnreachable";
 
@@ -12,6 +10,8 @@ import "./DatabaseGroup.scss";
 import { Icon } from "./Icon";
 import IconName from "typings/server/icons";
 import { TextColor } from "components/models/common";
+import copyToClipboard from "common/copyToClipboard";
+import useBoolean from "components/hooks/useBoolean";
 
 interface DatabaseGroupProps extends HTMLAttributes<HTMLDivElement> {
     children?: ReactNode | ReactNode[];
@@ -133,15 +133,16 @@ interface DatabaseGroupErrorProps extends HTMLAttributes<HTMLDivElement> {
     node: NodeInfo;
 }
 
-export function DatabaseGroupError(props: DatabaseGroupErrorProps) {
-    const { node } = props;
+export function DatabaseGroupError({ node }: DatabaseGroupErrorProps) {
+    const { value: isDetailsOpen, toggle: toggleIsDetailsOpen } = useBoolean(false);
+
     const lastErrorShort = node.lastError ? genUtils.trimMessage(node.lastError) : null;
 
-    const showErrorsDetails = useCallback(() => {
-        app.showBootstrapDialog(new showDataDialog("Error details for Node " + node.tag, node.lastError, "plain"));
-    }, [node]);
+    if (!lastErrorShort) {
+        return null;
+    }
 
-    return lastErrorShort ? (
+    return (
         <div className="dbgroup-error position-relative">
             <div className="text-danger">
                 <Icon icon="warning" /> Error
@@ -149,11 +150,53 @@ export function DatabaseGroupError(props: DatabaseGroupErrorProps) {
 
             <small className="d-flex flex-column">
                 {lastErrorShort}
-                <a className="link stretched-link ms-2" title="Click to see error details" onClick={showErrorsDetails}>
+                <Button
+                    color="link"
+                    size="sm"
+                    className="stretched-link ms-2"
+                    title="Click to see error details"
+                    onClick={toggleIsDetailsOpen}
+                >
                     Error Details <Icon icon="info" margin="m-0" />
-                </a>
+                </Button>
+                {isDetailsOpen && (
+                    <DatabaseGroupErrorDetails nodeTag={node.tag} error={node.lastError} close={toggleIsDetailsOpen} />
+                )}
             </small>
             <div></div>
         </div>
-    ) : null;
+    );
+}
+
+interface DatabaseGroupErrorDetailsProps {
+    nodeTag: string;
+    error: string;
+    close: () => void;
+}
+
+function DatabaseGroupErrorDetails({ nodeTag, error, close }: DatabaseGroupErrorDetailsProps) {
+    const copyError = () => {
+        copyToClipboard.copy(error, `Error details for Node ${nodeTag} was copied to clipboard`);
+    };
+
+    return (
+        <Modal isOpen wrapClassName="bs5" centered toggle={close} size="lg">
+            <ModalHeader toggle={close}>
+                Error details for <Icon icon="node" color="node" />
+                <strong>Node {nodeTag}</strong>
+            </ModalHeader>
+            <ModalBody>
+                <pre>{error}</pre>
+            </ModalBody>
+            <ModalFooter className="hstack gap-1 justify-content-end">
+                <Button color="secondary" onClick={close}>
+                    Close
+                </Button>
+                <Button color="primary" onClick={copyError}>
+                    <Icon icon="copy-to-clipboard" />
+                    Copy to clipboard
+                </Button>
+            </ModalFooter>
+        </Modal>
+    );
 }
