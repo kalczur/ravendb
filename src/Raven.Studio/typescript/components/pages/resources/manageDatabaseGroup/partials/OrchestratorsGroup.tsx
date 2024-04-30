@@ -1,5 +1,5 @@
 ﻿import React, { useCallback } from "react";
-import { Button } from "reactstrap";
+import { Button, Form, FormGroup, Label, Modal, ModalBody, ModalFooter, ModalHeader } from "reactstrap";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import {
@@ -10,8 +10,6 @@ import { OrchestratorInfoComponent } from "components/pages/resources/manageData
 import { DeletionInProgress } from "components/pages/resources/manageDatabaseGroup/partials/DeletionInProgress";
 import { useEventsCollector } from "hooks/useEventsCollector";
 import { useServices } from "hooks/useServices";
-import app from "durandal/app";
-import addNewOrchestratorToDatabase from "viewmodels/resources/addNewOrchestatorToDatabaseGroup";
 import classNames from "classnames";
 import {
     RichPanel,
@@ -32,6 +30,15 @@ import { Icon } from "components/common/Icon";
 import useConfirm from "components/common/ConfirmDialog";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
 import { useAppSelector } from "components/store";
+import * as yup from "yup";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import { FormSelect } from "components/common/Form";
+import useBoolean from "components/hooks/useBoolean";
+import { clusterSelectors } from "components/common/shell/clusterSlice";
+import { OptionWithIcon, SelectOptionWithIcon, SingleValueWithIcon } from "components/common/select/Select";
+import { tryHandleSubmit } from "components/utils/common";
+import ButtonWithSpinner from "components/common/ButtonWithSpinner";
 
 export function OrchestratorsGroup() {
     const db = useAppSelector(databaseSelectors.activeDatabase);
@@ -51,11 +58,7 @@ export function OrchestratorsGroup() {
     const { databasesService } = useServices();
     const { reportEvent } = useEventsCollector();
     const confirm = useConfirm();
-
-    const addNode = useCallback(() => {
-        const addKeyView = new addNewOrchestratorToDatabase(db.name, db.nodes);
-        app.showBootstrapDialog(addKeyView);
-    }, [db]);
+    const { value: isNewNodeConfirmOpen, toggle: toggleIsNewNodeConfirmOpen } = useBoolean(false);
 
     const saveNewOrder = useCallback(
         async (tagsOrder: string[], fixOrder: boolean) => {
@@ -138,11 +141,12 @@ export function OrchestratorsGroup() {
                                         outline
                                         className="rounded-pill stretched-link"
                                         disabled={!addNodeEnabled}
-                                        onClick={addNode}
+                                        onClick={toggleIsNewNodeConfirmOpen}
                                     >
                                         <Icon icon="plus" />
                                         Add node
                                     </Button>
+                                    {isNewNodeConfirmOpen && <AddNodeConfirmation close={toggleIsNewNodeConfirmOpen} />}
                                 </DatabaseGroupActions>
                             </DatabaseGroupItem>
                             {db.nodes.map((node) => (
@@ -164,3 +168,69 @@ export function OrchestratorsGroup() {
         </RichPanel>
     );
 }
+
+function AddNodeConfirmation({ close }: { close: () => void }) {
+    const { control, formState, handleSubmit } = useForm<NewNodeFormData>({
+        resolver: yupResolver(schema),
+        defaultValues: {
+            nodeTag: "",
+        },
+    });
+
+    const db = useAppSelector(databaseSelectors.activeDatabase);
+    const allClusterNodeTags = useAppSelector(clusterSelectors.allNodeTags);
+    const usedNodeTags = db.nodes.map((x) => x.tag);
+
+    const availableNodeTagOptions: SelectOptionWithIcon[] = allClusterNodeTags
+        .filter((x) => !usedNodeTags.includes(x))
+        .map((x) => ({ label: x, value: x, icon: "node", iconColor: "node" }));
+
+    const { databasesService } = useServices();
+
+    const addNode = async (data: NewNodeFormData) => {
+        return tryHandleSubmit(async () => {
+            const nodeTag = data.nodeTag;
+            await databasesService.addOrchestratorToDatabaseGroup(db.name, nodeTag);
+            close();
+        });
+    };
+
+    return (
+        <Modal isOpen wrapClassName="bs5" centered toggle={close}>
+            <Form onSubmit={handleSubmit(addNode)}>
+                <ModalHeader className="pb-0" toggle={close}>
+                    Add a new orchestrator to the database group
+                </ModalHeader>
+                <ModalBody>
+                    <FormGroup>
+                        <Label>Node Tag</Label>
+                        <FormSelect
+                            control={control}
+                            name="nodeTag"
+                            placeholder="Select node tag"
+                            options={availableNodeTagOptions}
+                            components={{
+                                SingleValue: SingleValueWithIcon,
+                                Option: OptionWithIcon,
+                            }}
+                        />
+                    </FormGroup>
+                </ModalBody>
+                <ModalFooter className="hstack gap-1 justify-content-end">
+                    <Button type="button" onClick={close}>
+                        Cancel
+                    </Button>
+                    <ButtonWithSpinner color="primary" type="submit" icon="plus" isSpinning={formState.isSubmitting}>
+                        Add Node
+                    </ButtonWithSpinner>
+                </ModalFooter>
+            </Form>
+        </Modal>
+    );
+}
+
+const schema = yup.object({
+    nodeTag: yup.string().required(),
+});
+
+type NewNodeFormData = yup.InferType<typeof schema>;

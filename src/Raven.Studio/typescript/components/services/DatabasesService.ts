@@ -69,6 +69,7 @@ import saveUnusedDatabaseIDsCommand = require("commands/database/settings/saveUn
 import { createDatabaseCommand } from "commands/resources/createDatabaseCommand";
 import { restoreDatabaseFromBackupCommand } from "commands/resources/restoreDatabaseFromBackupCommand";
 import distributeSecretCommand = require("commands/database/secrets/distributeSecretCommand");
+import addOrchestratorToDatabaseGroupCommand = require("commands/database/dbGroup/addOrchestratorToDatabaseGroupCommand");
 
 export default class DatabasesService {
     async setLockMode(databaseNames: string[], newLockMode: DatabaseLockMode) {
@@ -340,5 +341,9 @@ export default class DatabasesService {
 
     async distributeSecret(...args: ConstructorParameters<typeof distributeSecretCommand>) {
         return new distributeSecretCommand(...args).execute();
+    }
+
+    async addOrchestratorToDatabaseGroup(...args: ConstructorParameters<typeof addOrchestratorToDatabaseGroupCommand>) {
+        return new addOrchestratorToDatabaseGroupCommand(...args).execute();
     }
 }
