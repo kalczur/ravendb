@@ -77,8 +77,8 @@ namespace Raven.Server.NotificationCenter
                     }
                 }
 
-                if (Logger.IsInfoEnabled)
-                    Logger.Info($"Saving notification '{notification.Id}'.");
+                if (Logger.IsDebugEnabled)
+                    Logger.Debug($"Saving notification '{notification.Id}'.");
 
                 using (var json = context.ReadObject(notification.ToJson(), "notification", BlittableJsonDocumentBuilder.UsageMode.ToDisk))
                 using (var tx = context.OpenWriteTransaction())
