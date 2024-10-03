@@ -2,22 +2,24 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useAsync, useAsyncCallback } from "react-async-hook";
 import { virtualTableConstants } from "../utils/virtualTableConstants";
 
-interface UseVirtualTableWithLazyLoadingProps<T> {
-    fetchData: (count: number, elementNumber: number) => Promise<pagedResult<T>>;
+type FetchData<T extends pagedResult<unknown>> = (skip: number, take: number) => Promise<T>;
+
+interface UseVirtualTableWithLazyLoadingProps<T extends pagedResult<unknown>> {
+    fetchData: FetchData<T>;
     overscan?: number;
     debounceInMs?: number;
 }
 
-export function useVirtualTableWithLazyLoading<T>({
+export function useVirtualTableWithLazyLoading<T extends pagedResult<unknown>>({
     fetchData,
     overscan = 50,
-    debounceInMs = 200,
+    debounceInMs = 100,
 }: UseVirtualTableWithLazyLoadingProps<T>) {
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
     const initialItemsCount = Math.ceil(window.innerHeight / defaultRowHeightInPx) + overscan;
 
-    const [dataArray, setDataArray] = useState<any[]>([]);
+    const [dataArray, setDataArray] = useState<T["items"]>([]);
     const [totalResultCount, setTotalResultCount] = useState<number>(0);
 
     const scalar = useMemo(() => getScalar(totalResultCount), [totalResultCount]);
@@ -25,6 +27,7 @@ export function useVirtualTableWithLazyLoading<T>({
     const [scrollTopAfterLoad, setScrollTopAfterLoad] = useState(0);
     const [visibleElementsCount, setVisibleElementsCount] = useState(0);
     const [isOnBottom, setIsOnBottom] = useState(false);
+    const [isOnTop, setIsOnTop] = useState(false);
 
     const [lastSkip, setLastSkip] = useState<number>(0);
     const [lastTake, setLastTake] = useState<number>(initialItemsCount);
@@ -96,6 +99,7 @@ export function useVirtualTableWithLazyLoading<T>({
 
             setVisibleElementsCount(visibleElementsCount);
             setIsOnBottom(start === totalResultCount);
+            setIsOnTop(start === 0);
 
             debouncedLoadData(start, overscan + visibleElementsCount + overscan);
         };
@@ -109,15 +113,15 @@ export function useVirtualTableWithLazyLoading<T>({
     }, [totalResultCount, overscan, scalar, tableContainerRef, debouncedLoadData]);
 
     const getRowPositionY = (index: number) => {
-        if (scrollTopAfterLoad === 0) {
+        if (scrollTopAfterLoad === 0 || isOnTop) {
             return index * defaultRowHeightInPx;
         }
 
         if (isOnBottom) {
-            const x = dataArray.length - visibleElementsCount;
-            const r = scrollTopAfterLoad + (index - x) * defaultRowHeightInPx;
+            const visibleStartingIndex = dataArray.length - visibleElementsCount;
+            const rowPositionY = scrollTopAfterLoad + (index - visibleStartingIndex) * defaultRowHeightInPx;
 
-            return r;
+            return rowPositionY;
         }
 
         return scrollTopAfterLoad + index * defaultRowHeightInPx - overscan * defaultRowHeightInPx;

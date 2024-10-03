@@ -5,15 +5,19 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { ClassNameProps } from "components/models/common";
 import VirtualTableBodyWrapper, { VirtualTableBodyWrapperProps } from "./bits/VirtualTableBodyWrapper";
 import { virtualTableConstants } from "components/common/virtualTable/utils/virtualTableConstants";
+import classNames from "classnames";
 
 interface VirtualTableProps<T> extends Omit<VirtualTableBodyWrapperProps<T>, "tableContainerRef"> {
     overscan?: number;
+    tableContainerRef?: React.RefObject<HTMLDivElement>;
 }
 
 export default function VirtualTable<T>(props: VirtualTableProps<T> & ClassNameProps) {
     const { table, className, heightInPx = 300, overscan = 5, isLoading = false } = props;
 
-    const tableContainerRef = useRef<HTMLDivElement>(null);
+    const innerTableContainerRef = useRef<HTMLDivElement>(null);
+    const tableContainerRef = props.tableContainerRef ?? innerTableContainerRef;
+
     const { rows } = table.getRowModel();
 
     const rowVirtualizer = useVirtualizer({
@@ -46,6 +50,7 @@ export default function VirtualTable<T>(props: VirtualTableProps<T> & ClassNameP
                             style={{
                                 transform: `translateY(${virtualRow.start}px)`,
                             }}
+                            className={classNames({ "is-odd": virtualRow.index % 2 !== 0 })}
                         >
                             {row.getVisibleCells().map((cell) => (
                                 <td

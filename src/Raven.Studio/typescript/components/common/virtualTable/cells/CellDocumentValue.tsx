@@ -30,10 +30,6 @@ export default function CellDocumentValue({
                 extractedCollectionName.startsWith(collection.toLowerCase())
             );
 
-            if (!matchedCollection) {
-                return null;
-            }
-
             return appUrl.forEditDoc(cellValue, databaseName, matchedCollection);
         }
 
@@ -41,6 +37,7 @@ export default function CellDocumentValue({
     };
 
     const documentLink = getLinkToDocument(value);
+
     if (hasHyperlinkForIds && documentLink) {
         return (
             <CellWithCopy value={value}>

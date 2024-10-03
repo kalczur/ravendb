@@ -9,7 +9,7 @@ import { useReactTable, getCoreRowModel, getSortedRowModel, ColumnDef } from "@t
 import TableDisplaySettings from "./commonComponents/columnsSelect/TableDisplaySettings";
 import { FlexGrow } from "components/common/FlexGrow";
 import { CellValueWrapper } from "./cells/CellValue";
-import VirtualTableWithDynamicLoading from "./VirtualTableWithLazyLoading";
+import VirtualTableWithLazyLoading from "./VirtualTableWithLazyLoading";
 import { useVirtualTableWithLazyLoading } from "./hooks/useVirtualTableWithLazyLoading";
 
 // copied from queryCommand
@@ -85,12 +85,12 @@ function VirtualTableExample() {
     );
 }
 
-export const VirtualTableWithDynamicLoadingStory: StoryObj = {
+export const VirtualTableWithLazyLoadingStory: StoryObj = {
     name: "With lazy loading",
-    render: VirtualTableWithDynamicLoadingExample,
+    render: VirtualTableWithLazyLoadingExample,
 };
 
-function VirtualTableWithDynamicLoadingExample() {
+function VirtualTableWithLazyLoadingExample() {
     const { dataArray, componentProps } = useVirtualTableWithLazyLoading({ fetchData });
 
     const table = useReactTable({
@@ -106,7 +106,7 @@ function VirtualTableWithDynamicLoadingExample() {
     return (
         <div>
             <h2>100M items</h2>
-            <VirtualTableWithDynamicLoading {...componentProps} table={table} heightInPx={500} />
+            <VirtualTableWithLazyLoading {...componentProps} table={table} heightInPx={500} />
         </div>
     );
 }
