@@ -124,3 +124,23 @@ export const availableS3Regions: SelectOption<string>[] = sortBy(
 export type OmitIndexSignature<T> = {
     [K in keyof T as string extends K ? never : K]: T[K];
 };
+
+export type StringWithAutocomplete<T> = T | (string & NonNullable<unknown>);
+
+export const allLogLevels = exhaustiveStringTuple<Sparrow.Logging.LogLevel>()(
+    "Off",
+    "Trace",
+    "Debug",
+    "Info",
+    "Warn",
+    "Error",
+    "Fatal"
+);
+
+export const allLogFilterActions = exhaustiveStringTuple<Sparrow.Logging.LogFilterAction>()(
+    "Ignore",
+    "IgnoreFinal",
+    "Log",
+    "LogFinal",
+    "Neutral"
+);
