@@ -62,4 +62,8 @@ export default class MockManageServerService extends AutoMockService<ManageServe
             SharedStubs.nodeConnectionTestSuccessResult()
         );
     }
+
+    withCertificates(dto?: MockedValue<CertificatesResponseDto>) {
+        return this.mockResolvedValue(this.mocks.getCertificates, dto, ManageServerStubs.certificates());
+    }
 }

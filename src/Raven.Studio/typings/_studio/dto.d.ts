@@ -1056,3 +1056,10 @@ type GetConnectionStringsResult = Omit<Raven.Client.Documents.Operations.Connect
 
 
 type AzureQueueStorageAuthenticationType = "connectionString" | "entraId" | "passwordless";
+
+type CertificatesResponseDto = {
+    Certificates: Array<Partial<Raven.Client.ServerWide.Operations.Certificates.CertificateDefinition> & { HasTwoFactor?: boolean; }>,
+    LoadedServerCert: string,
+    WellKnownAdminCerts: string[],
+    WellKnownIssuers: string[]
+}
