@@ -12,6 +12,7 @@ import testPeriodicBackupCredentialsCommand = require("commands/serverWide/testP
 import saveServerWideCustomSorterCommand = require("commands/serverWide/sorters/saveServerWideCustomSorterCommand");
 import saveServerWideCustomAnalyzerCommand from "commands/serverWide/analyzers/saveServerWideCustomAnalyzerCommand";
 import getCertificatesCommand = require("commands/auth/getCertificatesCommand");
+import getAdminStatsCommand = require("commands/resources/getAdminStatsCommand");
 
 export default class ManageServerService {
     async getGlobalClientConfiguration(): Promise<ClientConfiguration> {
@@ -67,5 +68,9 @@ export default class ManageServerService {
 
     async getCertificates(...args: ConstructorParameters<typeof getCertificatesCommand>) {
         return new getCertificatesCommand(...args).execute();
+    }
+
+    async getAdminStats(...args: ConstructorParameters<typeof getAdminStatsCommand>) {
+        return new getAdminStatsCommand(...args).execute();
     }
 }
