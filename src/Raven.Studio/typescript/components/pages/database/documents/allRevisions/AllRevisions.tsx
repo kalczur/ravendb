@@ -106,6 +106,7 @@ export default function AllRevisions() {
                             onChange={(x: SelectOptionWithCount<string>) => collection.setValue(x?.value ?? "")}
                             isClearable
                             components={{ Option: OptionWithCount, SingleValue: SingleValueWithCount }}
+                            isRoundedPill
                         />
                     </div>
                     <div>
