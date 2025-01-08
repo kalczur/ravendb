@@ -69,7 +69,7 @@ export const adminLogsSlice = createSlice({
             state.logs = action.payload;
         },
         logsManyAppended: (state, action: PayloadAction<Omit<AdminLogsMessage, "_meta">[]>) => {
-            let newLogs: AdminLogsMessage[] = [
+            const newLogs: AdminLogsMessage[] = [
                 ...state.logs,
                 ...action.payload.map((message) => ({
                     ...message,
@@ -77,14 +77,13 @@ export const adminLogsSlice = createSlice({
                 })),
             ];
 
-            if (newLogs.length > state.maxLogsCount) {
-                newLogs = newLogs.slice(newLogs.length - state.maxLogsCount);
-            }
-
             state.logs = newLogs;
         },
         maxLogsCountSet: (state, action: PayloadAction<number>) => {
             state.maxLogsCount = action.payload;
+        },
+        isPausedSet: (state, action: PayloadAction<boolean>) => {
+            state.isPaused = action.payload;
         },
         isPausedToggled: (state) => {
             state.isPaused = !state.isPaused;
@@ -170,6 +169,7 @@ const selectFilteredLogs = createSelector(
 export const adminLogsSelectors = {
     logs: (store: RootState) => store.adminLogs.logs,
     filteredLogs: selectFilteredLogs,
+    isBufferFull: (store: RootState) => store.adminLogs.logs.length >= store.adminLogs.maxLogsCount,
     configs: (store: RootState) => store.adminLogs.configs,
     configsLoadStatus: (store: RootState) => store.adminLogs.configsLoadStatus,
     maxLogsCount: (store: RootState) => store.adminLogs.maxLogsCount,

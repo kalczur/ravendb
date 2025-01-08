@@ -23,6 +23,7 @@ import { StylesConfig } from "react-select";
 import { Button, Card, CardBody, CardHeader, Input } from "reactstrap";
 import { Switch } from "components/common/Checkbox";
 import { FlexGrow } from "components/common/FlexGrow";
+import { ConditionalPopover } from "components/common/ConditionalPopover";
 
 export default function AdminLogs() {
     const dispatch = useAppDispatch();
@@ -39,6 +40,7 @@ export default function AdminLogs() {
     const configs = useAppSelector(adminLogsSelectors.configs);
     const configsLoadStatus = useAppSelector(adminLogsSelectors.configsLoadStatus);
     const filter = useAppSelector(adminLogsSelectors.filter);
+    const isBufferFull = useAppSelector(adminLogsSelectors.isBufferFull);
 
     const { localFilter, handleFilterChange } = useAdminLogsFilter();
 
@@ -82,6 +84,12 @@ export default function AdminLogs() {
                             <h4 className="mb-0 lh-base d-flex align-items-center">
                                 <Icon icon="client" />
                                 Logs on this view
+                                {isPaused && (
+                                    <span className="ms-2 small-label text-warning">
+                                        <Icon icon="warning" />
+                                        Paused
+                                    </span>
+                                )}
                             </h4>
                             <div className="d-flex align-items-center lh-base">
                                 <Icon icon="logs" addon="arrow-filled-up" />
@@ -103,15 +111,25 @@ export default function AdminLogs() {
                         </CardHeader>
                         <CardBody className="p-2">
                             <div className="d-flex gap-2 flex-wrap">
-                                <Button
-                                    type="button"
-                                    color={isPaused ? "success" : "warning"}
-                                    title={isPaused ? "Click to resume logging" : "Click to pause logging"}
-                                    onClick={() => dispatch(adminLogsActions.isPausedToggled())}
+                                <ConditionalPopover
+                                    popoverPlacement="top"
+                                    conditions={{
+                                        isActive: isBufferFull,
+                                        message:
+                                            "Log buffer is full. Either increase buffer size in 'Display settings' or clear all entries.",
+                                    }}
                                 >
-                                    <Icon icon={isPaused ? "play" : "pause"} />
-                                    {isPaused ? "Resume" : "Pause"}
-                                </Button>
+                                    <Button
+                                        type="button"
+                                        color={isPaused ? "success" : "warning"}
+                                        title={isPaused ? "Click to resume logging" : "Click to pause logging"}
+                                        onClick={() => dispatch(adminLogsActions.isPausedToggled())}
+                                        disabled={isBufferFull}
+                                    >
+                                        <Icon icon={isPaused ? "play" : "pause"} />
+                                        {isPaused ? "Resume" : "Pause"}
+                                    </Button>
+                                </ConditionalPopover>
                                 <Button
                                     type="button"
                                     color="danger"
