@@ -4,11 +4,25 @@ import { Alert, AlertProps } from "reactstrap";
 import { Icon } from "components/common/Icon";
 import IconName from "../../../typings/server/icons";
 
+export type AlertVariant =
+    | "primary"
+    | "secondary"
+    | "success"
+    | "warning"
+    | "danger"
+    | "info"
+    | "progress"
+    | "node"
+    | "shard"
+    | "dark"
+    | "light";
+
 interface RichAlertProps extends AlertProps {
     icon?: IconName;
     iconAddon?: IconName;
     title?: string;
     color?: never;
+    variant: AlertVariant;
 }
 
 const defaultIcons: { [key: string]: IconName } = {

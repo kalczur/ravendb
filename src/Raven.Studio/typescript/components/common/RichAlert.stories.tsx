@@ -1,5 +1,4 @@
-import React from "react";
-import RichAlert from "components/common/RichAlert";
+import RichAlert, { AlertVariant } from "components/common/RichAlert";
 import { Button } from "reactstrap";
 import { withBootstrap5, withStorybookContexts } from "test/storybookTestUtils";
 
@@ -9,7 +8,7 @@ export default {
     decorators: [withStorybookContexts, withBootstrap5],
 };
 
-const colors = [
+const colors: AlertVariant[] = [
     "primary",
     "secondary",
     "success",
