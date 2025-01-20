@@ -46,7 +46,7 @@ export class ManageServerStubs {
             Certificates: [
                 {
                     Name: "Server Certificate",
-                    Thumbprint: "0E719C75B5899C07FCEF270B58B1FF153069677A",
+                    Thumbprint: "BCD2B71A3021A644E94768CCEFF7BE56E2006144",
                     SecurityClearance: "ClusterNode",
                     Permissions: {},
                     NotAfter: moment()
@@ -122,7 +122,7 @@ export class ManageServerStubs {
             LastRequestTime: moment().format(),
             LastAuthorizedNonClusterAdminRequestTime: null,
             LastRequestTimePerCertificate: {
-                "0E719C75B5899C07FCEF270B58B1FF153069677A": moment()
+                BCD2B71A3021A644E94768CCEFF7BE56E2006144: moment()
                     .add(-2 as const, "hours")
                     .format(),
                 "0F61904E1926ED2EDD5BB4BA8BC34742960B7839": moment()
@@ -130,5 +130,15 @@ export class ManageServerStubs {
                     .format(),
             },
         };
+    }
+
+    static serverCertificateRenewalDate(): string {
+        return moment()
+            .add(2 as const, "months")
+            .format();
+    }
+
+    static serverCertificateSetupMode(): Raven.Server.Commercial.SetupMode {
+        return "LetsEncrypt";
     }
 }
