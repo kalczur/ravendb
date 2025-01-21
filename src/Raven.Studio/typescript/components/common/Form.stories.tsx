@@ -105,8 +105,11 @@ export function Form({ isDefaultValid }: { isDefaultValid: boolean }) {
                 </FormSwitch>
             </div>
             <div>
-                <FormRadio control={control} name="inputRadio">
-                    Radio
+                <FormRadio control={control} name="inputRadio" value={true}>
+                    Radio (true)
+                </FormRadio>
+                <FormRadio control={control} name="inputRadio" value={false}>
+                    Radio (false)
                 </FormRadio>
             </div>
             <div>

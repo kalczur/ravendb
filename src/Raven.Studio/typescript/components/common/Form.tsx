@@ -1,7 +1,7 @@
 import React, { ComponentProps, ReactNode, useRef, useState } from "react";
 import genUtils from "common/generalUtils";
 import { Checkbox, CheckboxProps, Radio, Switch } from "components/common/Checkbox";
-import { Control, ControllerProps, FieldPath, FieldValues, useController } from "react-hook-form";
+import { Control, ControllerProps, FieldPath, FieldValues, PathValue, useController } from "react-hook-form";
 import { Button, Input, InputGroup, InputGroupText, InputProps } from "reactstrap";
 import { InputType } from "reactstrap/types/lib/Input";
 import { RadioToggleWithIcon } from "./toggles/RadioToggle";
@@ -123,9 +123,44 @@ export function FormSwitch<TFieldValues extends FieldValues, TName extends Field
 }
 
 export function FormRadio<TFieldValues extends FieldValues, TName extends FieldPath<TFieldValues>>(
-    props: FormToggleProps<TFieldValues, TName>
+    props: FormToggleProps<TFieldValues, TName> & { value: PathValue<TFieldValues, TName> }
 ) {
-    return <FormCheckbox type="radio" {...props} />;
+    const { name, control, rules, defaultValue, shouldUnregister, ...rest } = props;
+
+    const {
+        field: { onChange, onBlur, value },
+        fieldState: { invalid },
+        formState,
+    } = useController({
+        name,
+        control,
+        rules,
+        defaultValue,
+        shouldUnregister,
+    });
+
+    console.log("kalczur ", {
+        value,
+        propsValue: props.value,
+    });
+
+    return (
+        <div className="position-relative">
+            <div className="d-flex flex-grow-1">
+                <Radio
+                    selected={value === props.value}
+                    toggleSelection={() => {
+                        onChange(props.value);
+                    }}
+                    invalid={invalid}
+                    onBlur={onBlur}
+                    color="primary"
+                    disabled={formState.isSubmitting}
+                    {...rest}
+                />
+            </div>
+        </div>
+    );
 }
 
 export function getFormSelectedOptions<Option>(
