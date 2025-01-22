@@ -9,6 +9,7 @@ import StudioGlobalConfiguration = require("components/pages/resources/manageSer
 import GatherDebugInfo = require("components/pages/resources/manageServer/gatherDebugInfo/GatherDebugInfo");
 import ServerWideCustomAnalyzers = require("components/pages/resources/manageServer/serverWideAnalyzers/ServerWideCustomAnalyzers");
 import ServerWideCustomSorters = require("components/pages/resources/manageServer/serverWideSorters/ServerWideCustomSorters");
+import Certificates = require("components/pages/resources/manageServer/certificates/Certificates");
 
 export = getManageServerMenuItem;
 
@@ -98,12 +99,12 @@ function getManageServerMenuItem() {
         }),
         new leafMenuItem({
             route: 'admin/settings/certificates',
-            moduleId: require("viewmodels/manage/certificates"),
+            moduleId: reactUtils.bridgeToReact(Certificates.default, "nonShardedView"),
             title: "Certificates",
             nav: true,
             css: 'icon-certificate',
             dynamicHash: appUrl.forCertificates,
-            requiredAccess: "Operator"
+            requiredAccess: "Operator" // TODO omni search
         }),
         new leafMenuItem({
             route: 'admin/settings/serverWideTasks',

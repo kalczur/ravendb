@@ -141,4 +141,10 @@ export class ManageServerStubs {
     static serverCertificateSetupMode(): Raven.Server.Commercial.SetupMode {
         return "LetsEncrypt";
     }
+
+    static twoFactorSecret(): { Secret: string } {
+        return {
+            Secret: "RNHRX6WXCLZVQPJSW5NSWV64JU65E5WA",
+        };
+    }
 }
