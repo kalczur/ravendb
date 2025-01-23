@@ -2,10 +2,10 @@
     "version": "1.0.0",
     "name": "Raven.Studio",
     "scripts": {
-        "webpack": "npm run fix-packages && webpack --config webpack.config.js",
+        "rspack": "npm run fix-packages && rspack build",
         "webpack-watch": "npm run fix-packages && webpack --config webpack.config.js --watch",
         "restore": "npm run typings",
-        "compile": "npm run webpack",
+        "compile": "npm run rspack",
         "restore_compile": "npm run restore && npm run compile",
         "typings": "node scripts/typings.js",
         "antlr4ts": "antlr4ts languageService/grammar/BaseRqlLexer.g4 -visitor -no-listener languageService/grammar/BaseRqlParser.g4 -o languageService/src/generated/",

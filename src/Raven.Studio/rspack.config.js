@@ -9,11 +9,15 @@ const CopyPlugin = require("copy-webpack-plugin");
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const ZipPlugin = require("zip-webpack-plugin");
 const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
+ 
+// rspack 
+const { rspack } = require('@rspack/core');
+const { TsCheckerRspackPlugin } = require('ts-checker-rspack-plugin');
 
 // const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 
 module.exports = (env, args) => {
-    const isProductionMode = args && args.mode === 'production';
+    const isProductionMode = true;
 
     console.log(`PROD?: ${isProductionMode}`);
 
@@ -27,7 +31,7 @@ module.exports = (env, args) => {
         chunks: ["main"]
     });
 
-    const copyPlugin = new CopyPlugin({
+    const copyPlugin = new rspack.CopyRspackPlugin({
         patterns: [
             {
                 from: path.resolve(__dirname, 'wwwroot/Content/ace/'),
@@ -42,7 +46,7 @@ module.exports = (env, args) => {
         ]
     });
 
-    const miniCssExtractPlugin = new MiniCssExtractPlugin({
+    const miniCssExtractPlugin = new rspack.CssExtractRspackPlugin({
         filename: "styles/[name].css",
         chunkFilename: "styles/[name].css"
     });
@@ -51,19 +55,19 @@ module.exports = (env, args) => {
         miniCssExtractPlugin,
         htmlPlugin,
         copyPlugin,
-        new CircularDependencyPlugin({
-            // exclude detection of files based on a RegExp
-            exclude: /node_modules/,
-            failOnError: true,
-            allowAsyncCycles: false,
-            // set the current working directory for displaying module paths
-            cwd: process.cwd(),
-        }),
-        new webpack.DefinePlugin({
+        // new CircularDependencyPlugin({
+        //     // exclude detection of files based on a RegExp
+        //     exclude: /node_modules/,
+        //     failOnError: true,
+        //     allowAsyncCycles: false,
+        //     // set the current working directory for displaying module paths
+        //     cwd: process.cwd(),
+        // }),
+        new rspack.DefinePlugin({
             "window.ravenStudioRelease": isProductionMode,
             'process.env.NODE_DEBUG': false
         }),
-        new webpack.ProvidePlugin({
+        new rspack.ProvidePlugin({
             ko: "knockout",
             "_": "lodash",
             "jQuery": "jquery",
@@ -74,8 +78,8 @@ module.exports = (env, args) => {
             'window.jQuery': 'jquery',
             'window.ko': "knockout"
         }),
-        new webpack.ContextReplacementPlugin(/moment[\/\\]locale$/, /(en)$/),
-        new ForkTsCheckerWebpackPlugin({
+        // new webpack.ContextReplacementPlugin(/moment[\/\\]locale$/, /(en)$/),
+        new TsCheckerRspackPlugin({
             typescript: {
                 configFile: path.resolve(__dirname, "tsconfig.json")
             }
@@ -105,11 +109,18 @@ module.exports = (env, args) => {
             "bs5-styles-classic": "./wwwroot/Content/css/bs5-styles-classic.scss",
             "rql_worker": path.resolve(__dirname, './languageService/src/index.ts')
         },
+        amd: {
+            "durandal/system": true,
+            "durandal/viewLocator": true,
+            "durandal/viewEngine": true,
+            "durandal/activator": true,
+            // "plugins/router": true,
+        },
         output: {
             path: __dirname + '/wwwroot/dist',
             filename: 'assets/[name].js',
             chunkFilename: isProductionMode ? "assets/[name].[contenthash:8].js" : "assets/[name].js",
-            publicPath: "/studio/"
+            publicPath: "/studio/",
         },
         plugins: plugins,
         optimization: {
@@ -130,7 +141,7 @@ module.exports = (env, args) => {
                 {
                     test: /\.font\.js$/,
                     use: [
-                        MiniCssExtractPlugin.loader,
+                        rspack.CssExtractRspackPlugin.loader,
                         {
                             loader: 'css-loader',
                             options: {
@@ -210,7 +221,8 @@ module.exports = (env, args) => {
                                 cssTemplate: path.resolve(__dirname, "wwwroot/Content/css/fonts/icomoon.template.css.hbs")
                             }
                         }
-                    ]
+                    ],
+                    type: 'javascript/auto'
                 },
                 {
                     test: require.resolve('bootstrap-multiselect/dist/js/bootstrap-multiselect'),
@@ -220,7 +232,7 @@ module.exports = (env, args) => {
                     test: /\.less$/i,
                     use: [
                         {
-                            loader: MiniCssExtractPlugin.loader
+                            loader: rspack.CssExtractRspackPlugin.loader
                         },
                         {
                             loader: "css-loader",
@@ -235,13 +247,14 @@ module.exports = (env, args) => {
                                 sourceMap: false
                             }
                         }
-                    ]
+                    ],
+                    type: 'javascript/auto'
                 },
                 {
                     test: /\.scss$/,
                     use: [
                         {
-                            loader: MiniCssExtractPlugin.loader
+                            loader: rspack.CssExtractRspackPlugin.loader
                         },
                         {
                             loader: "css-loader",
@@ -263,14 +276,15 @@ module.exports = (env, args) => {
                                 },
                             }
                         }
-                    ]
+                    ],
+                    type: 'javascript/auto'
                 },
                 { 
                     test: /\.css$/,
                     use: [
                         {
                             loader: isProductionMode
-                                ? MiniCssExtractPlugin.loader
+                                ? rspack.CssExtractRspackPlugin.loader
                                 : 'style-loader'
                         },
                         {
@@ -279,12 +293,14 @@ module.exports = (env, args) => {
                                 url: true
                             }
                         }
-                    ]
+                    ],
+                    type: 'javascript/auto',// TODO maybe remove coz prod mode only
                 },
                 {
                     test: /\.tsx?$/,
                     use: {
-                        loader: 'swc-loader'
+                        // loader: 'swc-loader',
+                        loader: 'builtin:swc-loader',
                     },
                 },
                 {
