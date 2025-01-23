@@ -4,7 +4,7 @@ import { Modal, ModalBody, Button, ModalFooter } from "reactstrap";
 import IconName from "typings/server/icons";
 import { Icon } from "./Icon";
 
-interface ConfirmOptions {
+export interface ConfirmOptions {
     title: ReactNode;
     icon?: IconName;
     actionColor?: TextColor;
