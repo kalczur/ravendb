@@ -47,7 +47,7 @@ namespace Raven.Server.Dashboard
 
         public long RabbitMqSinkCount { get; set; }
 
-        public long VectorEmbeddingEnrichmentEtlCount { get; set; }
+        public long AiEtlCount { get; set; }
 
         public DynamicJsonValue ToJson()
         {
