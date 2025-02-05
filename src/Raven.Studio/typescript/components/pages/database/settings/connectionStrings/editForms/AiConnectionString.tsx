@@ -122,7 +122,7 @@ export default function AiConnectionString({ initialConnection, isForNewConnecti
                 </div>
 
                 {formValues.connectorType === "azureOpenAiSettings" && (
-                    <AzureOpenAiSettings isUsedByAnyTask={isUsedByAnyTask} />
+                    <AzureOpenAiSettings<FormData> isUsedByAnyTask={isUsedByAnyTask} />
                 )}
                 {formValues.connectorType === "googleSettings" && <GoogleSettings isUsedByAnyTask={isUsedByAnyTask} />}
                 {formValues.connectorType === "huggingFaceSettings" && (
