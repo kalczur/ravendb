@@ -94,7 +94,7 @@ export default function KafkaConnectionString({
                     autoComplete="off"
                 />
             </div>
-            <AzureOpenAiSettings<{ jd: number }> isUsedByAnyTask={false} />
+            <AzureOpenAiSettings isUsedByAnyTask={false} />
             <div className="mb-2">
                 <Label className="d-flex align-items-center gap-1">
                     Bootstrap Servers

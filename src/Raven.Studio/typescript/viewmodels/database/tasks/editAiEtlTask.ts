@@ -169,7 +169,6 @@ class aiTaskTestMode {
 class aiEtlTask extends shardViewModelBase {
     
     view = require("views/database/tasks/editAiEtlTask.html");
-    connectionStringView = require("views/database/settings/connectionStringAi.html");
     taskResponsibleNodeSectionView = require("views/partial/taskResponsibleNodeSection.html");
     pinResponsibleNodeTextScriptView = require("views/partial/pinResponsibleNodeTextScript.html");
 

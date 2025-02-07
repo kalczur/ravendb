@@ -363,8 +363,7 @@ export function mapAiConnectionsFromDto(
             ({
                 type,
                 name: connection.Name,
-                // usedByTasks: getConnectionStringUsedTasks(ongoingTasks, type, connection.Name),
-                usedByTasks: [{ id: 1, name: "test" }],
+                usedByTasks: getConnectionStringUsedTasks(ongoingTasks, type, connection.Name),
                 identifier: connection.Identifier,
                 connectorType: getConnectorType(connection),
                 azureOpenAiSettings: {
