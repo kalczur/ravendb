@@ -67,6 +67,7 @@ import getIdentitiesCommand from "commands/database/identities/getIdentitiesComm
 import seedIdentityCommand from "commands/database/identities/seedIdentityCommand";
 import getRevisionsBinCleanerConfigurationCommand from "commands/database/settings/getRevisionsBinCleanerConfigurationCommand";
 import saveRevisionsBinCleanerConfigurationCommand from "commands/database/settings/saveRevisionsBinCleanerConfigurationCommand";
+import getCompareExchangeItemsCommand from "commands/database/cmpXchg/getCompareExchangeItemsCommand";
 
 export default class DatabasesService {
     async setLockMode(databaseNames: string[], newLockMode: DatabaseLockMode) {
@@ -318,5 +319,9 @@ export default class DatabasesService {
 
     async seedIdentity(...args: ConstructorParameters<typeof seedIdentityCommand>) {
         return new seedIdentityCommand(...args).execute();
+    }
+
+    async getCompareExchangeItems(...args: ConstructorParameters<typeof getCompareExchangeItemsCommand>) {
+        return new getCompareExchangeItemsCommand(...args).execute();
     }
 }
