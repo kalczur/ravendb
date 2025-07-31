@@ -6,7 +6,13 @@ const schema = yup.object({
     parameters: yup.array().of(
         yup.object({
             name: yup.string().nullable(),
-            value: yup.string().nullable().required(),
+            value: yup
+                .string()
+                .nullable()
+                .when("$areParametersRequired", {
+                    is: true,
+                    then: (schema) => schema.required(),
+                }),
         })
     ),
 });

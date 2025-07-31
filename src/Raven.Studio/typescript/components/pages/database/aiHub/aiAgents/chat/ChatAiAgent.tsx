@@ -67,7 +67,7 @@ export default function ChatAiAgent({ queryParams }: ReactQueryParamsProps<Query
         };
     }, []);
 
-    // Scroll to the bottom of the test panel when new messages are added
+    // Scroll to the bottom of the test panel when new messages are added and set hasScroll
     useEffect(() => {
         dispatch(
             chatAiAgentActions.hasScrollSet(
@@ -83,11 +83,16 @@ export default function ChatAiAgent({ queryParams }: ReactQueryParamsProps<Query
         }
     }, [messages.length]);
 
+    const areParametersRequired = !window.location.href.includes("conversationId");
+
     const { control, handleSubmit, setValue } = useForm<ChatAiAgentFormData>({
         resolver: chatAiAgentYupResolver,
         defaultValues: {
             prompt: "",
             parameters: [],
+        },
+        context: {
+            areParametersRequired,
         },
     });
 
