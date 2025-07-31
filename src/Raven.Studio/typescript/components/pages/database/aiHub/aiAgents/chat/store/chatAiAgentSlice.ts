@@ -15,6 +15,7 @@ interface EditAiAgentState {
     messages: AiAgentMessage[];
     isRawData: boolean;
     isWaitingForActionToolSubmit: boolean;
+    hasScroll: boolean;
 }
 
 const initialState: EditAiAgentState = {
@@ -25,6 +26,7 @@ const initialState: EditAiAgentState = {
     messages: [],
     isRawData: false,
     isWaitingForActionToolSubmit: false,
+    hasScroll: false,
 };
 
 export const chatAiAgentSlice = createSlice({
@@ -45,6 +47,9 @@ export const chatAiAgentSlice = createSlice({
         },
         isWaitingForActionToolSubmitSet: (state, action: PayloadAction<boolean>) => {
             state.isWaitingForActionToolSubmit = action.payload;
+        },
+        hasScrollSet: (state, action: PayloadAction<boolean>) => {
+            state.hasScroll = action.payload;
         },
         reset: () => initialState,
     },
@@ -167,4 +172,5 @@ export const chatAiAgentSelectors = {
         state.chatAiAgent.config.status === "loading" ||
         state.chatAiAgent.document.status === "loading",
     isWaitingForActionToolSubmit: (state: RootState) => state.chatAiAgent.isWaitingForActionToolSubmit,
+    hasScroll: (state: RootState) => state.chatAiAgent.hasScroll,
 };
