@@ -1,10 +1,12 @@
 import "./EditAiAgent.scss";
 import { AboutViewHeading } from "components/common/AboutView";
 import useResizableWidth from "components/hooks/useResizableWidth";
-import { FormProvider, SubmitHandler, useForm, useWatch } from "react-hook-form";
+import { FormProvider, SubmitHandler, useFieldArray, useForm, useWatch } from "react-hook-form";
 import {
     EditAiAgentFormData,
     editAiAgentYupResolver,
+    ParameterAiAgentFormData,
+    parameterAiAgentYupResolver,
     TestAiAgentFormData,
     testAiAgentYupResolver,
 } from "./utils/editAiAgentValidation";
@@ -74,6 +76,34 @@ export default function EditAiAgent({ queryParams }: ReactQueryParamsProps<Query
         control: editForm.control,
     });
 
+    const parameterForm = useForm<ParameterAiAgentFormData>({
+        defaultValues: {
+            nameInput: "",
+            descriptionInput: null,
+        },
+        resolver: parameterAiAgentYupResolver,
+        context: {
+            allParameterNames: editFormValues.parameters?.map((x) => x.name) ?? [],
+        },
+    });
+
+    const parameterFormValues = useWatch({
+        control: parameterForm.control,
+    });
+
+    const parametersFieldArray = useFieldArray({
+        name: "parameters",
+        control: editForm.control,
+    });
+
+    const handleAddParameter: SubmitHandler<ParameterAiAgentFormData> = async (formData) => {
+        parametersFieldArray.append({
+            name: formData.nameInput,
+            description: formData.descriptionInput,
+        });
+        parameterForm.reset();
+    };
+
     const allQueriesNames = editFormValues.queries?.map((x) => x.name) ?? [];
 
     const testForm = useForm<TestAiAgentFormData>({
@@ -127,6 +157,16 @@ export default function EditAiAgent({ queryParams }: ReactQueryParamsProps<Query
         });
     };
 
+    const saveFieldsAndSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+
+        if (parameterFormValues.nameInput) {
+            await parameterForm.handleSubmit(handleAddParameter)();
+        }
+
+        await editForm.handleSubmit(saveAgent)();
+    };
+
     // Reset store on unmount
     useEffect(() => {
         return () => {
@@ -136,7 +176,7 @@ export default function EditAiAgent({ queryParams }: ReactQueryParamsProps<Query
 
     return (
         <FormProvider {...editForm}>
-            <form onSubmit={editForm.handleSubmit(saveAgent)} className="h-100 edit-ai-agent">
+            <form onSubmit={saveFieldsAndSubmit} className="h-100 edit-ai-agent">
                 <SizeGetter
                     render={({ width }) => (
                         <div className="hstack h-100">
@@ -160,7 +200,11 @@ export default function EditAiAgent({ queryParams }: ReactQueryParamsProps<Query
                                     {asyncGetDefaultValues.result && (
                                         <>
                                             <EditAiAgentBasicSection isEditAiAgent={isEditAiAgent} />
-                                            <EditAiAgentParametersSection />
+                                            <EditAiAgentParametersSection
+                                                control={parameterForm.control}
+                                                parametersFieldArray={parametersFieldArray}
+                                                handleSubmit={parameterForm.handleSubmit(handleAddParameter)}
+                                            />
                                             <EditAiAgentToolsSection />
                                             <EditAiAgentPersistenceSection />
                                             <EditAiAgentTrimmingSection />
