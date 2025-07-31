@@ -227,7 +227,7 @@ export default function ChatAiAgent({ queryParams }: ReactQueryParamsProps<Query
                                                 name="prompt"
                                                 placeholder="Ask the agent anything"
                                                 className="rounded-2"
-                                                style={{ resize: "none" }}
+                                                rows={3}
                                                 onKeyDown={(e) => {
                                                     if (e.key === "Enter" && !e.shiftKey) {
                                                         e.preventDefault();
