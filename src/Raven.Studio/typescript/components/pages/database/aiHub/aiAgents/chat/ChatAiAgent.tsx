@@ -24,6 +24,7 @@ import classNames from "classnames";
 interface QueryParams {
     agentId: string;
     conversationId: string;
+    isHistory: boolean;
 }
 
 export default function ChatAiAgent({ queryParams }: ReactQueryParamsProps<QueryParams>) {
@@ -164,7 +165,9 @@ export default function ChatAiAgent({ queryParams }: ReactQueryParamsProps<Query
                 </Switch>
             </div>
 
-            <div className="flex-grow-1 hstack justify-content-center">
+            <div
+                className={classNames("flex-grow-1 hstack justify-content-center", { "pb-3": queryParams?.isHistory })}
+            >
                 <SizeGetter
                     isHeighRequired
                     render={({ height }) => (
@@ -213,39 +216,41 @@ export default function ChatAiAgent({ queryParams }: ReactQueryParamsProps<Query
                                     )}
                                 </div>
                             </div>
-                            <div className="d-flex justify-content-center mt-3 px-3 pb-3">
-                                <div className="w-100" style={{ maxWidth: "800px" }}>
-                                    <div className="position-relative">
-                                        <FormInput
-                                            type="textarea"
-                                            as="textarea"
-                                            control={control}
-                                            name="prompt"
-                                            placeholder="Ask the agent anything"
-                                            className="rounded-2"
-                                            style={{ resize: "none" }}
-                                            onKeyDown={(e) => {
-                                                if (e.key === "Enter" && !e.shiftKey) {
-                                                    e.preventDefault();
-                                                    handleSubmit(handleSend)();
-                                                }
-                                            }}
-                                            disabled={isLoading || isWaitingForActionToolSubmit}
-                                        />
-                                        {formValues.prompt && (
-                                            <ButtonWithSpinner
-                                                type="submit"
-                                                variant="secondary"
-                                                icon="arrow-up"
-                                                isSpinning={runChatState === "loading"}
+                            {!queryParams?.isHistory && (
+                                <div className="d-flex justify-content-center mt-3 px-3 pb-3">
+                                    <div className="w-100" style={{ maxWidth: "800px" }}>
+                                        <div className="position-relative">
+                                            <FormInput
+                                                type="textarea"
+                                                as="textarea"
+                                                control={control}
+                                                name="prompt"
+                                                placeholder="Ask the agent anything"
+                                                className="rounded-2"
+                                                style={{ resize: "none" }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter" && !e.shiftKey) {
+                                                        e.preventDefault();
+                                                        handleSubmit(handleSend)();
+                                                    }
+                                                }}
                                                 disabled={isLoading || isWaitingForActionToolSubmit}
-                                                className="position-absolute rounded-pill"
-                                                style={{ right: "10px", bottom: "10px", zIndex: 5 }}
                                             />
-                                        )}
+                                            {formValues.prompt && (
+                                                <ButtonWithSpinner
+                                                    type="submit"
+                                                    variant="secondary"
+                                                    icon="arrow-up"
+                                                    isSpinning={runChatState === "loading"}
+                                                    disabled={isLoading || isWaitingForActionToolSubmit}
+                                                    className="position-absolute rounded-pill"
+                                                    style={{ right: "10px", bottom: "10px", zIndex: 5 }}
+                                                />
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            )}
                         </form>
                     )}
                 />
