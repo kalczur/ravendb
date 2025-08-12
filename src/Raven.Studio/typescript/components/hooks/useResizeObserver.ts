@@ -86,8 +86,5 @@ function extractSize(
         return undefined;
     }
 
-    return Array.isArray(entry[box])
-        ? entry[box][0][sizeType]
-        : // @ts-expect-error Support Firefox's non-standard behavior
-          (entry[box][sizeType] as number);
+    return Array.isArray(entry[box]) ? entry[box][0][sizeType] : (entry[box][sizeType] as number);
 }
