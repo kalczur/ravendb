@@ -3,6 +3,7 @@ const webpackConfigFunc = require("../webpack.config");
 const path = require("path");
 const CopyPlugin = require("copy-webpack-plugin");
 const ForkTsCheckerWebpackPlugin = require("fork-ts-checker-webpack-plugin");
+const webpack = require("webpack");
 
 const webpackConfig = webpackConfigFunc(null, {
     mode: "development",
@@ -26,8 +27,6 @@ const config: StorybookConfig = {
     stories: ["../typescript/**/*.stories.tsx"],
     addons: [
         "@storybook/addon-links",
-        "@storybook/addon-essentials",
-        "@storybook/addon-interactions",
         "@storybook/addon-webpack5-compiler-swc",
         "@storybook/addon-a11y",
         "@storybook/addon-designs",
@@ -104,6 +103,12 @@ const config: StorybookConfig = {
                 typescript: {
                     configFile: path.resolve(__dirname, "../tsconfig.json"),
                 },
+            })
+        );
+
+        config.plugins?.push(
+            new webpack.DefinePlugin({
+                "process.env": JSON.stringify({}),
             })
         );
 

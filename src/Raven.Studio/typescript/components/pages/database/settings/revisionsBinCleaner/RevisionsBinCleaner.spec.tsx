@@ -2,7 +2,7 @@ import React from "react";
 import { composeStories } from "@storybook/react";
 import { rtlRender, rtlRender_WithWaitForLoad } from "test/rtlTestUtils";
 import * as stories from "./RevisionsBinCleaner.stories";
-import userEvent from "@testing-library/user-event";
+import { userEvent } from "storybook/test";
 import { queryAllByClassName } from "test/byClassNameQueries";
 
 const { DefaultRevisionsBinCleaner } = composeStories(stories);

@@ -2,7 +2,7 @@ import { composeStory } from "@storybook/react";
 import * as stories from "components/pages/database/tasks/ongoingTasks/stories/InternalReplication.stories";
 import { rtlRender } from "test/rtlTestUtils";
 import React from "react";
-import { userEvent } from "@storybook/test";
+import { userEvent } from "storybook/test";
 
 describe("Internal Replication", function () {
     it("can render", async () => {
