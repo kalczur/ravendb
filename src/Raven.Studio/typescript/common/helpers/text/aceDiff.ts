@@ -84,7 +84,7 @@ class aceDiffEditor {
         return this.highlights.length;
     }
     
-    update(patch: diff.ParsedDiff, gaps: gapItem[]) {
+    update(patch: diff.StructuredPatch, gaps: gapItem[]) {
         this.widgets = this.applyLineGaps(this.editor, gaps);
         this.highlights = this.findLinesToHighlight(patch.hunks, this.mode);
         this.hasAnyChange = patch.hunks.length > 0;
@@ -198,7 +198,7 @@ class aceDiffEditor {
         });
     }
 
-    private findLinesToHighlight(hunks: diff.Hunk[], mode: "left" | "right") {
+    private findLinesToHighlight(hunks: diff.StructuredPatchHunk[], mode: "left" | "right") {
         const ignoreLinesStartsWith = mode === "left" ? "+" : "-";
         const takeLinesStartsWith = mode === "left" ? "-" : "+";
 
