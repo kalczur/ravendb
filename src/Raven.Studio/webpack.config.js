@@ -1,7 +1,6 @@
 const path = require("path");
 const webpack = require('webpack');
 const CircularDependencyPlugin = require("circular-dependency-plugin");
-const TerserPlugin = require("terser-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
@@ -9,7 +8,9 @@ const CopyPlugin = require("copy-webpack-plugin");
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const ZipPlugin = require("zip-webpack-plugin");
 const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
-const { defineReactCompilerLoaderOption, reactCompilerLoader } = require('react-compiler-webpack');
+
+// TODO add after @tanstack/react-table fix
+// const { defineReactCompilerLoaderOption, reactCompilerLoader } = require('react-compiler-webpack');
 
 // const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 
@@ -118,7 +119,6 @@ module.exports = (env, args) => {
             emitOnErrors: false,
             usedExports: true,
             minimizer: [
-                new TerserPlugin(),
                 new CssMinimizerPlugin()
             ]
         },
