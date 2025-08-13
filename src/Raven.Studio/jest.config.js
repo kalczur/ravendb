@@ -1,8 +1,9 @@
 module.exports = {
+    'preset': 'ts-jest',
+    'testEnvironment': 'jsdom',
     'roots': [
         '<rootDir>'
     ],
-    'testEnvironment': 'jsdom',
     'moduleFileExtensions': [
         'ts',
         'tsx',
@@ -12,15 +13,17 @@ module.exports = {
     ],
     "testRegex": [ "(/__tests__/.*|(\\.|/)(spec))\\.[jt]sx?$" ],
     'transform': {
-        '.*\.tsx?$': 'ts-jest',
+        '^.+\\.tsx?$': ['ts-jest', {
+            tsconfig: './tsconfig.jest.json'
+        }],
         "^.+\\.html?$": "<rootDir>/typescript/test/htmlLoader.js"
     },
     "setupFiles": [
         "./scripts/setup_jest.js",
     ],
     "setupFilesAfterEnv": [
-        "./scripts/setup_runtime.ts",
         "jest-extended/all",
+        "@testing-library/jest-dom",
     ],
     moduleDirectories: [
         "node_modules",

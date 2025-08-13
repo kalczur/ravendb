@@ -13,6 +13,20 @@ require("bootstrap/dist/js/bootstrap");
 
 require("../typescript/test/mocks");
 
+// Add custom Yup methods manually to avoid importing setup file
+const yup = require("yup");
+
+// Basic URL regex pattern
+const urlRegex = /^https?:\/\/[^\s/$.?#].[^\s]*$/i;
+
+yup.addMethod(yup.string, "basicUrl", function (msg = "Invalid URL") {
+    return this.matches(urlRegex, msg);
+});
+
+yup.addMethod(yup.string, "base64", function (msg = "Invalid base64") {
+    return this.matches(/^[A-Za-z0-9+/]*={0,2}$/, msg);
+});
+
 const customHooks = require("../typescript/components/hooks/hooksForAutoMock.json").hooks;
 
 customHooks.forEach(hook => {
@@ -46,6 +60,26 @@ window.Worker = class Worker {
     postMessage = () => null;
     terminate = () => null;
 }
+
+// Mock studioSettings comprehensively
+jest.mock("common/settings/studioSettings", () => ({
+    default: {
+        configureLoaders: jest.fn(),
+        init: jest.fn(),
+        getValue: jest.fn(() => null),
+        setValue: jest.fn(),
+        globalSettings: jest.fn(() => Promise.resolve({
+            environment: { getValue: jest.fn(() => "Development") },
+            replicationFactor: { getValue: jest.fn(() => 1) },
+            collapseDocsWhenOpening: { getValue: jest.fn(() => false) },
+            disableAutoIndexCreation: { getValue: jest.fn(() => false) },
+            disableStudioAnalytics: { getValue: jest.fn(() => false) },
+            sendUsageStats: { getValue: jest.fn(() => false) }
+        })),
+        databaseSettings: jest.fn(() => ({})),
+        environment: jest.fn(() => ({}))
+    }
+}));
 
 const studioSettings = require("common/settings/studioSettings");
 const mockJQueryPromise = () => $().promise();

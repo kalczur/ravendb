@@ -63,7 +63,7 @@ describe("can complete select", function () {
         const suggestions = await autocomplete("from Orders select Company as |");
         
         expect(suggestions)
-            .toBeEmpty();
+            .toHaveLength(0);
     });
     
     it("can suggest distinct in select stmt", async () => {
