@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Raven.Client;
+using Raven.Client.Documents.Attachments;
 using Raven.Client.Documents.Operations;
 using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.AI.Agents;
@@ -378,17 +379,24 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
 
                 var genAiItem = new GenAiItem(document, Configuration.Collection);
                 var transformedResults = Transform([genAiItem], context, scope, new EtlProcessState());
+
                 items = PrepareItemsBeforeSendingToModel(transformedResults);
 
                 context.CloseTransaction();
+
+                GenerateAttachmentPreview(items);
                 break;
             case TestStage.SendToModel:
-                _chatCompletionClient ??= GetClient();
                 items = testGenAiScript.Input;
+                using (context.OpenReadTransaction())
+                    ReloadAttachmentsData(context, items);
+
+                _chatCompletionClient ??= GetClient();
                 List<Exception> exceptions = SendToModel(items, context, scope);
                 if (exceptions is not null)
                     throw new AggregateException(exceptions);
 
+                GenerateAttachmentPreview(items);
                 break;
             case TestStage.ApplyUpdateScript:
                 {
@@ -479,6 +487,47 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
             DebugOutput = debugOutput,
             TransformationErrors = Statistics.TransformationErrorsInCurrentBatch.Errors.ToList(),
         };
+    }
+
+    private void GenerateAttachmentPreview(List<GenAiResultItem> items)
+    {
+        const int maxDataLength = 100;
+
+        // Shorten the attachment’s data into a summary (first 100 chars + 3 dots)
+        foreach (var r in items)
+        {
+            if (r.ContextOutput.Attachments.IsNullOrEmpty())
+                continue;
+
+            foreach (var att in r.ContextOutput.Attachments.Where(a => a.State == AiAttachmentState.Loaded && a.DataAsBase64.Length > maxDataLength))
+            {
+                att.DataAsBase64 = att.DataAsBase64.Substring(0, maxDataLength) + "...";
+            }
+        }
+    }
+
+    private void ReloadAttachmentsData(DocumentsOperationContext context, IEnumerable<GenAiResultItem> items)
+    {
+        // load the attachments data again and replace the summary(preview) with it
+        foreach (var item in items)
+        {
+            if (item.ContextOutput.Attachments.IsNullOrEmpty())
+                continue;
+
+            foreach (var genAtt in item.ContextOutput.Attachments.Where(a => a.State != AiAttachmentState.Unloaded))
+            {
+                // try to reload again every loaded/not-found attachment
+                var attachment = Database.DocumentsStorage.AttachmentsStorage.GetAttachment(context, item.DocId, genAtt.Name, AttachmentType.Document, null);
+                if (attachment == null)
+                {
+                    genAtt.DataAsBase64 = GenAiScriptTransformer.GetNotFoundMessage(genAtt.Name, genAtt.Type);
+                    genAtt.Type = ChatCompletionClient.Constants.AttachmentsRequestFields.MediaTypeTextPlain;
+                    genAtt.State = AiAttachmentState.NotFound;
+                    continue;
+                }
+                genAtt.DataAsBase64 = GenAiScriptTransformer.GetAttachmentDataAsBase64(attachment, genAtt.Type);
+            }
+        }
     }
 
     private static void FilterMetadataProperties(DocumentsOperationContext context, Document document)

@@ -210,6 +210,7 @@ var ai = new AI();
                         var data = string.Empty;
                         string type = attachmentObj.GetOwnProperty(AttachmentsRequestConstants.Type).Value.AsString();
                         string filename = "unknown.name";
+                        var state = AiAttachmentState.Loaded;
 
                         // TODO: we aren't being really efficient here in terms of allocations / memory
                         // but the problem is that the API itself may require large BASE64 strings, annoying 
@@ -218,41 +219,50 @@ var ai = new AI();
                             filename = attachment.Name.ToString(CultureInfo.InvariantCulture);
                             if (reference.IsNull())
                             {
-                                data = $"File '{filename}' (of type '{type}') could not be loaded: attachment not found";
+                                data = GetNotFoundMessage(filename, type);
                                 type = AttachmentsRequestConstants.MediaTypeTextPlain;
+                                state = AiAttachmentState.NotFound;
                             }
                             else
                             {
-                                using var memoryStream = RecyclableMemoryStreamFactory.GetRecyclableStream();
-                                if (type == AttachmentsRequestConstants.MediaTypeTextPlain)
-                                {
-                                    attachment.Stream.CopyTo(memoryStream);
-                                }
-                                else // anything but text is using BASE64
-                                {
-                                    using var transform = new ToBase64Transform();
-                                    using var cryptoStream = new CryptoStream(attachment.Stream, transform, CryptoStreamMode.Read);
-                                    cryptoStream.CopyTo(memoryStream);
-                                }
-
-                                Span<byte> readOnlySpan = memoryStream.GetBuffer();
-                                data = Encoding.ASCII.GetString(readOnlySpan[..(int)memoryStream.Length]);
+                                data = GetAttachmentDataAsBase64(attachment, type);
                             }
                         }
                         else
                         {
                             //if we arrive here we probably didn't pass through loadAttachment() function
+                            state = AiAttachmentState.Unloaded;
                             data = reference.ToString();
                             if (type != AttachmentsRequestConstants.MediaTypeTextPlain && IsBase64(data) == false)
                                 throw new InvalidOperationException($"Attachment must be loaded or base64 string (on type {type})");
                         }
 
-                        result.Attachments.Add(new AiAttachment(filename, type, data));
+                        result.Attachments.Add(new AiAttachment(filename, type, state, data));
                     }
                 }
                 _currentRun.Add(result);
             }
         }
+    }
+
+    public static string GetNotFoundMessage(string filename, string type) => $"File '{filename}' (of type '{type}') could not be loaded: attachment not found";
+
+    public static string GetAttachmentDataAsBase64(Attachment attachment, string type)
+    {
+        using var memoryStream = RecyclableMemoryStreamFactory.GetRecyclableStream();
+        if (type == AttachmentsRequestConstants.MediaTypeTextPlain)
+        {
+            attachment.Stream.CopyTo(memoryStream);
+        }
+        else // anything but text is using BASE64
+        {
+            using var transform = new ToBase64Transform();
+            using var cryptoStream = new CryptoStream(attachment.Stream, transform, CryptoStreamMode.Read);
+            cryptoStream.CopyTo(memoryStream);
+        }
+
+        Span<byte> readOnlySpan = memoryStream.GetBuffer();
+        return Encoding.ASCII.GetString(readOnlySpan[..(int)memoryStream.Length]);
     }
 
     private static bool IsBase64(string data) => string.IsNullOrEmpty(data) == false && Base64.IsValid(data);
