@@ -201,7 +201,7 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
 
         foreach (var attachment in attachments)
         {
-            if (attachment.State == AiAttachmentState.NotFound)
+            if (attachment.Source == AiAttachmentSource.NotFound)
             {
                 content.Add(new DynamicJsonValue
                 {

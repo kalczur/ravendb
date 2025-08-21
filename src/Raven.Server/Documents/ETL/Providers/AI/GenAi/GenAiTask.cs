@@ -384,19 +384,20 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
 
                 context.CloseTransaction();
 
-                GenerateAttachmentPreview(items);
                 break;
             case TestStage.SendToModel:
                 items = testGenAiScript.Input;
+                List<(AiAttachment GenAiAttachment, string Preview)> previews;
                 using (context.OpenReadTransaction())
-                    ReloadAttachmentsData(context, items);
+                    previews = ReloadAttachmentsData(context, items);
 
                 _chatCompletionClient ??= GetClient();
                 List<Exception> exceptions = SendToModel(items, context, scope);
                 if (exceptions is not null)
                     throw new AggregateException(exceptions);
 
-                GenerateAttachmentPreview(items);
+                // reattach the previews
+                previews.ForEach(p => p.GenAiAttachment.DataAsBase64 = p.Preview);
                 break;
             case TestStage.ApplyUpdateScript:
                 {
@@ -489,45 +490,30 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
         };
     }
 
-    private void GenerateAttachmentPreview(List<GenAiResultItem> items)
+    private List<(AiAttachment, string)> ReloadAttachmentsData(DocumentsOperationContext context, IEnumerable<GenAiResultItem> items)
     {
-        const int maxDataLength = 100;
+        var previews = new List<(AiAttachment GenAiAttachment, string Preview)>();
 
-        // Shorten the attachment’s data into a summary (first 100 chars + 3 dots)
-        foreach (var r in items)
-        {
-            if (r.ContextOutput.Attachments.IsNullOrEmpty())
-                continue;
-
-            foreach (var att in r.ContextOutput.Attachments.Where(a => a.State == AiAttachmentState.Loaded && a.DataAsBase64.Length > maxDataLength))
-            {
-                att.DataAsBase64 = att.DataAsBase64.Substring(0, maxDataLength) + "...";
-            }
-        }
-    }
-
-    private void ReloadAttachmentsData(DocumentsOperationContext context, IEnumerable<GenAiResultItem> items)
-    {
         // load the attachments data again and replace the summary(preview) with it
         foreach (var item in items)
         {
             if (item.ContextOutput.Attachments.IsNullOrEmpty())
                 continue;
 
-            foreach (var genAtt in item.ContextOutput.Attachments.Where(a => a.State != AiAttachmentState.Unloaded))
+            foreach (var genAtt in item.ContextOutput.Attachments.Where(a => a.Source == AiAttachmentSource.FromDatabase))
             {
+                previews.Add((genAtt, genAtt.DataAsBase64));
+
                 // try to reload again every loaded/not-found attachment
                 var attachment = Database.DocumentsStorage.AttachmentsStorage.GetAttachment(context, item.DocId, genAtt.Name, AttachmentType.Document, null);
                 if (attachment == null)
-                {
-                    genAtt.DataAsBase64 = string.Empty;
-                    genAtt.State = AiAttachmentState.NotFound;
-                    continue;
-                }
-                genAtt.State = AiAttachmentState.Loaded;
-                genAtt.DataAsBase64 = GenAiScriptTransformer.GetAttachmentDataAsBase64(attachment, genAtt.Type);
+                    throw new InvalidOperationException($"The document '{item.DocId}' has no attachment with name '{genAtt.Name}' from type '{genAtt.Type}' anymore");
+                
+                genAtt.DataAsBase64 = GenAiScriptTransformer.GetAttachmentDataAsBase64(attachment, genAtt.Type, preview: false);
             }
         }
+
+        return previews;
     }
 
     private static void FilterMetadataProperties(DocumentsOperationContext context, Document document)

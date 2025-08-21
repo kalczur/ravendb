@@ -8,7 +8,7 @@ public class AiAttachment
 {
     public string Name { get; set; }
     public string Type { get; set; }
-    public AiAttachmentState State { get; set; }
+    public AiAttachmentSource Source { get; set; }
     public string DataAsBase64 { get; set; }
 
     public AiAttachment()
@@ -16,16 +16,16 @@ public class AiAttachment
         // for deserialization
     }
 
-    public AiAttachment(string name, string type, AiAttachmentState state, string dataAsBase64)
+    public AiAttachment(string name, string type, AiAttachmentSource source, string dataAsBase64)
     {
         ValidationMethods.AssertNotNullOrEmpty(name, nameof(Name));
         ValidationMethods.AssertNotNullOrEmpty(type, nameof(Type));
-        if (state != AiAttachmentState.NotFound)
+        if (source != AiAttachmentSource.NotFound)
             ValidationMethods.AssertNotNullOrEmpty(dataAsBase64, nameof(DataAsBase64));
 
         Name = name;
         Type = type;
-        State = state;
+        Source = source;
         DataAsBase64 = dataAsBase64;
     }
 
@@ -35,7 +35,7 @@ public class AiAttachment
         {
             [nameof(Name)] = Name,
             [nameof(Type)] = Type,
-            [nameof(State)] = State,
+            [nameof(Source)] = Source,
             [nameof(DataAsBase64)] = DataAsBase64
         };
 
@@ -43,4 +43,4 @@ public class AiAttachment
     }
 }
 
-public enum AiAttachmentState { Loaded, Unloaded, NotFound }
+public enum AiAttachmentSource { FromDatabase, FromUser, NotFound }
