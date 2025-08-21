@@ -20,7 +20,8 @@ public class AiAttachment
     {
         ValidationMethods.AssertNotNullOrEmpty(name, nameof(Name));
         ValidationMethods.AssertNotNullOrEmpty(type, nameof(Type));
-        ValidationMethods.AssertNotNullOrEmpty(dataAsBase64, nameof(DataAsBase64));
+        if (state != AiAttachmentState.NotFound)
+            ValidationMethods.AssertNotNullOrEmpty(dataAsBase64, nameof(DataAsBase64));
 
         Name = name;
         Type = type;

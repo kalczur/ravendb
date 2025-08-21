@@ -520,11 +520,11 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
                 var attachment = Database.DocumentsStorage.AttachmentsStorage.GetAttachment(context, item.DocId, genAtt.Name, AttachmentType.Document, null);
                 if (attachment == null)
                 {
-                    genAtt.DataAsBase64 = GenAiScriptTransformer.GetNotFoundMessage(genAtt.Name, genAtt.Type);
-                    genAtt.Type = ChatCompletionClient.Constants.AttachmentsRequestFields.MediaTypeTextPlain;
+                    genAtt.DataAsBase64 = string.Empty;
                     genAtt.State = AiAttachmentState.NotFound;
                     continue;
                 }
+                genAtt.State = AiAttachmentState.Loaded;
                 genAtt.DataAsBase64 = GenAiScriptTransformer.GetAttachmentDataAsBase64(attachment, genAtt.Type);
             }
         }

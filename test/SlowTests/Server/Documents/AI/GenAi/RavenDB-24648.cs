@@ -350,7 +350,7 @@ for(const comment of this.Comments)
 
     [RavenTheory(RavenTestCategory.Ai)]
     [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
-    public async Task GenAiTestModeWithUnloadedAttachments1(Options options, GenAiConfiguration config)
+    public async Task GenAiTestModeWithNotFoundAttachments(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore(options);
         await store.Maintenance.SendAsync(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
@@ -411,8 +411,9 @@ for(const comment of this.Comments)
         {
             Assert.Equal(1, genAiContexts2[i].ContextOutput.Attachments.Count);
             Assert.Equal(attNames[i], genAiContexts2[i].ContextOutput.Attachments.FirstOrDefault()?.Name);
-            Assert.Equal($"File '{attNames[i]}' (of type 'image/png') could not be loaded: attachment not found", genAiContexts2[i].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
+            Assert.Equal(string.Empty, genAiContexts2[i].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
             Assert.Equal(AiAttachmentState.NotFound, genAiContexts2[i].ContextOutput.Attachments.FirstOrDefault()?.State);
+            Assert.Equal("image/png", genAiContexts2[0].ContextOutput.Attachments.FirstOrDefault()?.Type);
         }
 
         // Existing doc with attachments
@@ -436,9 +437,9 @@ for(const comment of this.Comments)
 
         Assert.Equal(1, genAiContexts[2].ContextOutput.Attachments.Count);
         Assert.Equal("none.png", genAiContexts[2].ContextOutput.Attachments.FirstOrDefault()?.Name);
-        Assert.Equal("File 'none.png' (of type 'image/png') could not be loaded: attachment not found", genAiContexts[2].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
+        Assert.Equal(string.Empty, genAiContexts[2].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
         Assert.Equal(AiAttachmentState.NotFound, genAiContexts[2].ContextOutput.Attachments.FirstOrDefault()?.State);
-        Assert.Equal("text/plain", genAiContexts[2].ContextOutput.Attachments.FirstOrDefault()?.Type);
+        Assert.Equal("image/png", genAiContexts[2].ContextOutput.Attachments.FirstOrDefault()?.Type);
 
 
         // Stage 2 : Send to model
@@ -457,6 +458,7 @@ for(const comment of this.Comments)
         Assert.Equal(AiAttachmentState.NotFound, contextsAndOutputs[2].ContextOutput.Attachments.FirstOrDefault()?.State);
         Assert.Equal(HeartPngBase64.Substring(0, 100) + "...", contextsAndOutputs[0].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
         Assert.Equal(StarPngBase64.Substring(0, 100) + "...", contextsAndOutputs[1].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
+        Assert.Equal(string.Empty, contextsAndOutputs[2].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
         Assert.NotNull(contextsAndOutputs[0].ModelOutput?.Output);
         Assert.NotNull(contextsAndOutputs[1].ModelOutput?.Output);
         Assert.NotNull(contextsAndOutputs[2].ModelOutput?.Output);
@@ -492,7 +494,7 @@ for(const comment of this.Comments)
 
     [RavenTheory(RavenTestCategory.Ai)]
     [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
-    public async Task GenAiTestModeWithUnloadedAttachments2(Options options, GenAiConfiguration config)
+    public async Task GenAiTestModeWithUnloadedAttachments(Options options, GenAiConfiguration config)
     {
         using var store = GetDocumentStore(options);
         await store.Maintenance.SendAsync(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
@@ -638,6 +640,81 @@ for(const comment of this.Comments)
         outputDoc.Comments[1].AuthorDescription = marker;
         outputDoc.Comments[2].AuthorDescription = marker;
         Assert.Equal(post1, outputDoc);
+    }
+
+    [RavenTheory(RavenTestCategory.Ai)]
+    [RavenGenAiData(IntegrationType = RavenAiIntegration.OpenAi, DatabaseMode = RavenDatabaseMode.Single, CheckCanConnect = false, NightlyBuildRequired = false)]
+    public async Task Test(Options options, GenAiConfiguration config)
+    {
+        using var store = GetDocumentStore(options);
+        await store.Maintenance.SendAsync(new PutConnectionStringOperation<AiConnectionString>(config.Connection));
+
+        config.Prompt = "Describe the following images." + NonEmptyAnswerHint;
+        config.Collection = "Posts";
+        config.SampleObject = JsonConvert.SerializeObject(
+            new { PhotoDescription = "Description of the photo" });
+
+        config.UpdateScript = @"    
+const comment = this.Comments.find(c => c.Id == $input.Id);
+comment.AuthorDescription = $output.PhotoDescription;
+";
+
+        config.GenAiTransformation = new GenAiTransformation
+        {
+            Script = $"const banana = '{BananaPngBase64}'; " +
+@"
+for(const comment of this.Comments)
+{
+    let img = loadAttachment(comment.ProfileImage);
+    if (comment.ProfileImage === 'all'){
+        ai.genContext({Id: comment.Id})
+            .withPng(loadAttachment('heart.png'))
+            .withPng(loadAttachment('star.png'))
+            .withPng(loadAttachment('none.png'))
+            .withPng(banana);
+        continue;
+    }
+
+    if (comment.ProfileImage === 'banana'){
+        ai.genContext({Id: comment.Id}).withPng(banana);
+        continue;
+    }
+
+    ai.genContext({Id: comment.Id}).withPng(img);
+}"
+        };
+
+        var marker = "None" + Guid.NewGuid();
+        var post1 = new Post("Hello World!",
+            new Comment[]
+            {
+                new Comment(id: "Comment0", author: "Oren All", authorDescription: marker, content: "Hi!", profileImage: "all"),
+                // new Comment(id: "Comment1", author: "Shahar Heart", authorDescription: marker, content: "Hey!", profileImage: "heart.png"),
+                // new Comment(id: "Comment2", author: "Omer Star", authorDescription: marker, content: "Hello!", profileImage: "star.png"),
+                // new Comment(id: "Comment3", author: "Aviv Rachmany", authorDescription: marker, content: "Hello", profileImage: "none.png"),
+                // new Comment(id: "Comment4", author: "Karmel Banana", authorDescription: marker, content: "Hello there", profileImage: "banana"),
+            });
+
+        using (var session = store.OpenAsyncSession())
+        {
+            await session.StoreAsync(post1, "Post/1");
+
+            using var heart = new MemoryStream(Convert.FromBase64String(HeartPngBase64));
+            using var star = new MemoryStream(Convert.FromBase64String(StarPngBase64));
+
+            session.Advanced.Attachments.Store("Post/1", "heart.png", heart);
+            session.Advanced.Attachments.Store("Post/1", "star.png", star);
+
+            await session.SaveChangesAsync();
+        }
+
+        var database = await GetDocumentDatabaseInstanceFor(store);
+        using var _ = database.DocumentsStorage.ContextPool.AllocateOperationContext(out DocumentsOperationContext context);
+
+
+        // Existing doc with attachments
+        var createCtx = await store.Maintenance.SendAsync(context, new TestCreateGenAiContextOperation("Post/1", config));
+        var genAiContexts = createCtx.Results;
     }
 
     private static readonly Func<BlittableJsonReaderObject, Post> ToPost = JsonDeserializationClient.GenerateJsonDeserializationRoutine<Post>();

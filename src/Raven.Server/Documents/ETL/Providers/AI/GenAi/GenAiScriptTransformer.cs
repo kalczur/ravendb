@@ -219,8 +219,6 @@ var ai = new AI();
                             filename = attachment.Name.ToString(CultureInfo.InvariantCulture);
                             if (reference.IsNull())
                             {
-                                data = GetNotFoundMessage(filename, type);
-                                type = AttachmentsRequestConstants.MediaTypeTextPlain;
                                 state = AiAttachmentState.NotFound;
                             }
                             else
@@ -244,8 +242,6 @@ var ai = new AI();
             }
         }
     }
-
-    public static string GetNotFoundMessage(string filename, string type) => $"File '{filename}' (of type '{type}') could not be loaded: attachment not found";
 
     public static string GetAttachmentDataAsBase64(Attachment attachment, string type)
     {

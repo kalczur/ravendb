@@ -201,6 +201,16 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
 
         foreach (var attachment in attachments)
         {
+            if (attachment.State == AiAttachmentState.NotFound)
+            {
+                content.Add(new DynamicJsonValue
+                {
+                    [Constants.AttachmentsRequestFields.Type] = Constants.AttachmentsRequestFields.TypeText,
+                    [Constants.AttachmentsRequestFields.TypeText] = $"File '{attachment.Name}' (of type '{attachment.Type}') could not be loaded: attachment not found"
+                });
+                continue;
+            }
+
             content.Add(attachment.Type switch
             {
                 Constants.AttachmentsRequestFields.MediaTypeTextPlain => new DynamicJsonValue
