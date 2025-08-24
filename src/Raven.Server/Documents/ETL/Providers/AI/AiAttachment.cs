@@ -9,7 +9,7 @@ public class AiAttachment
     public string Name { get; set; }
     public string Type { get; set; }
     public AiAttachmentSource Source { get; set; }
-    public string DataAsBase64 { get; set; }
+    public string Data { get; set; }
 
     public AiAttachment()
     {
@@ -21,12 +21,12 @@ public class AiAttachment
         ValidationMethods.AssertNotNullOrEmpty(name, nameof(Name));
         ValidationMethods.AssertNotNullOrEmpty(type, nameof(Type));
         if (source != AiAttachmentSource.NotFound)
-            ValidationMethods.AssertNotNullOrEmpty(dataAsBase64, nameof(DataAsBase64));
+            ValidationMethods.AssertNotNullOrEmpty(dataAsBase64, nameof(Data));
 
         Name = name;
         Type = type;
         Source = source;
-        DataAsBase64 = dataAsBase64;
+        Data = dataAsBase64;
     }
 
     public DynamicJsonValue ToJson()
@@ -36,7 +36,7 @@ public class AiAttachment
             [nameof(Name)] = Name,
             [nameof(Type)] = Type,
             [nameof(Source)] = Source,
-            [nameof(DataAsBase64)] = DataAsBase64
+            [nameof(Data)] = Data
         };
 
         return json;

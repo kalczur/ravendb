@@ -216,7 +216,7 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
                 Constants.AttachmentsRequestFields.MediaTypeTextPlain => new DynamicJsonValue
                 {
                     [Constants.AttachmentsRequestFields.Type] = Constants.AttachmentsRequestFields.TypeText,
-                    [Constants.AttachmentsRequestFields.TypeText] = attachment.DataAsBase64
+                    [Constants.AttachmentsRequestFields.TypeText] = attachment.Data
                 },
                 Constants.AttachmentsRequestFields.MediaTypeApplicationPdf => new DynamicJsonValue
                 {
@@ -224,7 +224,7 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
                     [Constants.AttachmentsRequestFields.File] = new DynamicJsonValue
                     {
                         [Constants.AttachmentsRequestFields.FileName] = attachment.Name,
-                        [Constants.AttachmentsRequestFields.FileData] = "data:application/pdf;base64," + attachment.DataAsBase64
+                        [Constants.AttachmentsRequestFields.FileData] = "data:application/pdf;base64," + attachment.Data
                     }
                 },
                 Constants.AttachmentsRequestFields.MediaTypeImageJpeg or 
@@ -235,7 +235,7 @@ internal class ChatCompletionClient : IChatCompletionClient, IChatCompletionClie
                     [Constants.AttachmentsRequestFields.Type] = Constants.AttachmentsRequestFields.ImageUrl,
                     [Constants.AttachmentsRequestFields.ImageUrl] = new DynamicJsonValue
                     {
-                        [Constants.AttachmentsRequestFields.Url] = "data:" + attachment.Type + ";base64," + attachment.DataAsBase64
+                        [Constants.AttachmentsRequestFields.Url] = "data:" + attachment.Type + ";base64," + attachment.Data
                     }
                 },
                 _ => throw new InvalidOperationException($"Attachment '{attachment.Name}' has unknown type: {attachment.Type}")

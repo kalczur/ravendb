@@ -40,8 +40,11 @@ public class RavenDB_24648(ITestOutputHelper output) : RavenTestBase(output)
     private const string NonEmptyAnswerHint =
         " ;Always provide a valid structured response matching the schema (if you have no answer or an empty answer - please return default values instead)";
 
-    private static ReadOnlySpan<byte> Csv => @"Date,Description,Category,Amount
-2025-01-01,Grocery Store,Food,45.32
+    private static ReadOnlySpan<byte> Text => "emoji_אימוג'י_\ud83d\ude00\ud83d\ude01\ud83d\ude02\ud83d\ude0d\ud83d\ude0e\ud83d\ude4f\ud83e\udd14\ud83d\ude80\ud83d\udc31\ud83d\ude00\ud83d\ude01\ud83d\ude02\ud83d\ude0d\ud83d\ude0e\ud83d\ude4f\ud83e\udd14\ud83d\ude80_emoji_emoji_emoji_emoji_emoji_emoji_emoji_emoji_emoji_emoji_emoji_emoji_emoji_emoji_emoji_emoji_emoji_emoji"u8;
+
+    private static ReadOnlySpan<byte> Csv => 
+        @"Date,Description,Category,Amount
+2025-01-01,Grocery Store,food,45.32
 2025-01-02,Utility Bill,Utilities,120.75
 2025-01-03,Online Shopping,Retail,89.99
 2025-01-04,Gas Station,Transportation,35.50
@@ -226,8 +229,8 @@ for(const comment of this.Comments)
         Assert.Equal("star.png", genAiContexts[1].ContextOutput.Attachments.FirstOrDefault()?.Name);
         Assert.Equal("image/png", genAiContexts[0].ContextOutput.Attachments.FirstOrDefault()?.Type);
         Assert.Equal("image/png", genAiContexts[1].ContextOutput.Attachments.FirstOrDefault()?.Type);
-        Assert.NotNull(genAiContexts[0].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
-        Assert.NotNull(genAiContexts[1].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
+        Assert.NotNull(genAiContexts[0].ContextOutput.Attachments.FirstOrDefault()?.Data);
+        Assert.NotNull(genAiContexts[1].ContextOutput.Attachments.FirstOrDefault()?.Data);
 
         // Stage 2 : Send to model
         var sendToModel = await store.Maintenance.SendAsync(context, new TestGenAiSendToModelOperation(genAiContexts, config));
@@ -335,8 +338,8 @@ for(const comment of this.Comments)
         Assert.Equal("star.png", genAiContexts[1].ContextOutput.Attachments.FirstOrDefault()?.Name);
         Assert.Equal("image/png", genAiContexts[0].ContextOutput.Attachments.FirstOrDefault()?.Type);
         Assert.Equal("image/png", genAiContexts[1].ContextOutput.Attachments.FirstOrDefault()?.Type);
-        Assert.NotNull(genAiContexts[0].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
-        Assert.NotNull(genAiContexts[1].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
+        Assert.NotNull(genAiContexts[0].ContextOutput.Attachments.FirstOrDefault()?.Data);
+        Assert.NotNull(genAiContexts[1].ContextOutput.Attachments.FirstOrDefault()?.Data);
 
 
         // Stage 2 : Send to model
@@ -439,7 +442,7 @@ for(const comment of this.Comments)
         {
             Assert.Equal(1, genAiContexts2[i].ContextOutput.Attachments.Count);
             Assert.Equal(attNames[i], genAiContexts2[i].ContextOutput.Attachments.FirstOrDefault()?.Name);
-            Assert.Equal(string.Empty, genAiContexts2[i].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
+            Assert.Equal(string.Empty, genAiContexts2[i].ContextOutput.Attachments.FirstOrDefault()?.Data);
             Assert.Equal(AiAttachmentSource.NotFound, genAiContexts2[i].ContextOutput.Attachments.FirstOrDefault()?.Source);
             Assert.Equal("image/png", genAiContexts2[0].ContextOutput.Attachments.FirstOrDefault()?.Type);
         }
@@ -456,16 +459,16 @@ for(const comment of this.Comments)
         Assert.Equal("star.png", genAiContexts[1].ContextOutput.Attachments.FirstOrDefault()?.Name);
         Assert.Equal("image/png", genAiContexts[0].ContextOutput.Attachments.FirstOrDefault()?.Type);
         Assert.Equal("image/png", genAiContexts[1].ContextOutput.Attachments.FirstOrDefault()?.Type);
-        Assert.Equal("[Hash:'FLNK25A3VOpVPIiusBEZMwUU5mWqSZR7T2OqYF4nBfA=']", genAiContexts[0].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
-        Assert.Equal("[Hash:'94IlaZrchKnAQBD3vQQ7sE0Yt6f0CJeu69Ljfb66bxo=']", genAiContexts[1].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
+        Assert.Equal("[Hash:'FLNK25A3VOpVPIiusBEZMwUU5mWqSZR7T2OqYF4nBfA=']", genAiContexts[0].ContextOutput.Attachments.FirstOrDefault()?.Data);
+        Assert.Equal("[Hash:'94IlaZrchKnAQBD3vQQ7sE0Yt6f0CJeu69Ljfb66bxo=']", genAiContexts[1].ContextOutput.Attachments.FirstOrDefault()?.Data);
         Assert.Equal(AiAttachmentSource.FromDatabase, genAiContexts[0].ContextOutput.Attachments.FirstOrDefault()?.Source);
         Assert.Equal(AiAttachmentSource.FromDatabase, genAiContexts[1].ContextOutput.Attachments.FirstOrDefault()?.Source);
-        Assert.NotNull(genAiContexts[0].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
-        Assert.NotNull(genAiContexts[1].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
+        Assert.NotNull(genAiContexts[0].ContextOutput.Attachments.FirstOrDefault()?.Data);
+        Assert.NotNull(genAiContexts[1].ContextOutput.Attachments.FirstOrDefault()?.Data);
 
         Assert.Equal(1, genAiContexts[2].ContextOutput.Attachments.Count);
         Assert.Equal("none.png", genAiContexts[2].ContextOutput.Attachments.FirstOrDefault()?.Name);
-        Assert.Equal(string.Empty, genAiContexts[2].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
+        Assert.Equal(string.Empty, genAiContexts[2].ContextOutput.Attachments.FirstOrDefault()?.Data);
         Assert.Equal(AiAttachmentSource.NotFound, genAiContexts[2].ContextOutput.Attachments.FirstOrDefault()?.Source);
         Assert.Equal("image/png", genAiContexts[2].ContextOutput.Attachments.FirstOrDefault()?.Type);
 
@@ -484,9 +487,9 @@ for(const comment of this.Comments)
         Assert.Equal(AiAttachmentSource.FromDatabase, contextsAndOutputs[0].ContextOutput.Attachments.FirstOrDefault()?.Source);
         Assert.Equal(AiAttachmentSource.FromDatabase, contextsAndOutputs[1].ContextOutput.Attachments.FirstOrDefault()?.Source);
         Assert.Equal(AiAttachmentSource.NotFound, contextsAndOutputs[2].ContextOutput.Attachments.FirstOrDefault()?.Source);
-        Assert.Equal("[Hash:'FLNK25A3VOpVPIiusBEZMwUU5mWqSZR7T2OqYF4nBfA=']", contextsAndOutputs[0].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
-        Assert.Equal("[Hash:'94IlaZrchKnAQBD3vQQ7sE0Yt6f0CJeu69Ljfb66bxo=']", contextsAndOutputs[1].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
-        Assert.Equal(string.Empty, contextsAndOutputs[2].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
+        Assert.Equal("[Hash:'FLNK25A3VOpVPIiusBEZMwUU5mWqSZR7T2OqYF4nBfA=']", contextsAndOutputs[0].ContextOutput.Attachments.FirstOrDefault()?.Data);
+        Assert.Equal("[Hash:'94IlaZrchKnAQBD3vQQ7sE0Yt6f0CJeu69Ljfb66bxo=']", contextsAndOutputs[1].ContextOutput.Attachments.FirstOrDefault()?.Data);
+        Assert.Equal(string.Empty, contextsAndOutputs[2].ContextOutput.Attachments.FirstOrDefault()?.Data);
         Assert.NotNull(contextsAndOutputs[0].ModelOutput?.Output);
         Assert.NotNull(contextsAndOutputs[1].ModelOutput?.Output);
         Assert.NotNull(contextsAndOutputs[2].ModelOutput?.Output);
@@ -591,7 +594,7 @@ for(const comment of this.Comments)
             Assert.Equal("unknown.name", att.Name);
             Assert.Equal(AiAttachmentSource.FromUser, att.Source);
             Assert.Equal("image/png", att.Type);
-            Assert.Equal(BananaPngBase64, att.DataAsBase64);
+            Assert.Equal(BananaPngBase64, att.Data);
         }
 
         // Existing doc with attachments
@@ -606,16 +609,16 @@ for(const comment of this.Comments)
         Assert.Equal("star.png", genAiContexts[1].ContextOutput.Attachments.FirstOrDefault()?.Name);
         Assert.Equal("image/png", genAiContexts[0].ContextOutput.Attachments.FirstOrDefault()?.Type);
         Assert.Equal("image/png", genAiContexts[1].ContextOutput.Attachments.FirstOrDefault()?.Type);
-        Assert.Equal("[Hash:'FLNK25A3VOpVPIiusBEZMwUU5mWqSZR7T2OqYF4nBfA=']", genAiContexts[0].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
-        Assert.Equal("[Hash:'94IlaZrchKnAQBD3vQQ7sE0Yt6f0CJeu69Ljfb66bxo=']", genAiContexts[1].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
+        Assert.Equal("[Hash:'FLNK25A3VOpVPIiusBEZMwUU5mWqSZR7T2OqYF4nBfA=']", genAiContexts[0].ContextOutput.Attachments.FirstOrDefault()?.Data);
+        Assert.Equal("[Hash:'94IlaZrchKnAQBD3vQQ7sE0Yt6f0CJeu69Ljfb66bxo=']", genAiContexts[1].ContextOutput.Attachments.FirstOrDefault()?.Data);
         Assert.Equal(AiAttachmentSource.FromDatabase, genAiContexts[0].ContextOutput.Attachments.FirstOrDefault()?.Source);
         Assert.Equal(AiAttachmentSource.FromDatabase, genAiContexts[1].ContextOutput.Attachments.FirstOrDefault()?.Source);
-        Assert.NotNull(genAiContexts[0].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
-        Assert.NotNull(genAiContexts[1].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
+        Assert.NotNull(genAiContexts[0].ContextOutput.Attachments.FirstOrDefault()?.Data);
+        Assert.NotNull(genAiContexts[1].ContextOutput.Attachments.FirstOrDefault()?.Data);
         
         Assert.Equal(1, genAiContexts[2].ContextOutput.Attachments.Count);
         Assert.Equal("unknown.name", genAiContexts[2].ContextOutput.Attachments.FirstOrDefault()?.Name);
-        Assert.Equal(BananaPngBase64, genAiContexts[2].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
+        Assert.Equal(BananaPngBase64, genAiContexts[2].ContextOutput.Attachments.FirstOrDefault()?.Data);
         Assert.Equal(AiAttachmentSource.FromUser, genAiContexts[2].ContextOutput.Attachments.FirstOrDefault()?.Source);
         Assert.Equal("image/png", genAiContexts[2].ContextOutput.Attachments.FirstOrDefault()?.Type);
         
@@ -634,9 +637,9 @@ for(const comment of this.Comments)
         Assert.Equal(AiAttachmentSource.FromDatabase, contextsAndOutputs[0].ContextOutput.Attachments.FirstOrDefault()?.Source);
         Assert.Equal(AiAttachmentSource.FromDatabase, contextsAndOutputs[1].ContextOutput.Attachments.FirstOrDefault()?.Source);
         Assert.Equal(AiAttachmentSource.FromUser, contextsAndOutputs[2].ContextOutput.Attachments.FirstOrDefault()?.Source);
-        Assert.Equal("[Hash:'FLNK25A3VOpVPIiusBEZMwUU5mWqSZR7T2OqYF4nBfA=']", contextsAndOutputs[0].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
-        Assert.Equal("[Hash:'94IlaZrchKnAQBD3vQQ7sE0Yt6f0CJeu69Ljfb66bxo=']", contextsAndOutputs[1].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
-        Assert.Equal(BananaPngBase64, contextsAndOutputs[2].ContextOutput.Attachments.FirstOrDefault()?.DataAsBase64);
+        Assert.Equal("[Hash:'FLNK25A3VOpVPIiusBEZMwUU5mWqSZR7T2OqYF4nBfA=']", contextsAndOutputs[0].ContextOutput.Attachments.FirstOrDefault()?.Data);
+        Assert.Equal("[Hash:'94IlaZrchKnAQBD3vQQ7sE0Yt6f0CJeu69Ljfb66bxo=']", contextsAndOutputs[1].ContextOutput.Attachments.FirstOrDefault()?.Data);
+        Assert.Equal(BananaPngBase64, contextsAndOutputs[2].ContextOutput.Attachments.FirstOrDefault()?.Data);
         Assert.NotNull(contextsAndOutputs[0].ModelOutput?.Output);
         Assert.NotNull(contextsAndOutputs[1].ModelOutput?.Output);
         Assert.NotNull(contextsAndOutputs[2].ModelOutput?.Output);
@@ -700,6 +703,7 @@ for(const comment of this.Comments)
             .withPng(loadAttachment('none.png'))
             .withPng(banana)
             .withText(loadAttachment('transactions.csv'))
+            .withText(loadAttachment('text.csv'))
             .withText(loadAttachment('short_text.txt'));
     }
 }"
@@ -719,11 +723,15 @@ for(const comment of this.Comments)
 
             using var heart = new MemoryStream(Convert.FromBase64String(HeartPngBase64));
             using var star = new MemoryStream(Convert.FromBase64String(StarPngBase64));
+            using var csv = new MemoryStream(Csv.ToArray());
+            using var text = new MemoryStream(Text.ToArray());
+            using var shortText = new MemoryStream("sort text"u8.ToArray());
 
             session.Advanced.Attachments.Store("Post/1", "heart.png", heart);
             session.Advanced.Attachments.Store("Post/1", "star.png", star);
-            session.Advanced.Attachments.Store("Post/1", "transactions.csv", new MemoryStream(Csv.ToArray()));
-            session.Advanced.Attachments.Store("Post/1", "short_text.txt", new MemoryStream("sort text"u8.ToArray()));
+            session.Advanced.Attachments.Store("Post/1", "transactions.csv", csv);
+            session.Advanced.Attachments.Store("Post/1", "text.csv", text);
+            session.Advanced.Attachments.Store("Post/1", "short_text.txt", shortText);
 
             await session.SaveChangesAsync();
         }
@@ -738,24 +746,26 @@ for(const comment of this.Comments)
         foreach (var genAiContext in genAiContexts)
         {
             var aiAttachments = genAiContext.ContextOutput.Attachments;
-            Assert.Equal(6, aiAttachments.Count);
+            Assert.Equal(7, aiAttachments.Count);
             Assert.Equal("heart.png", aiAttachments[0].Name);
             Assert.Equal("star.png", aiAttachments[1].Name);
             Assert.Equal("none.png", aiAttachments[2].Name);
             Assert.Equal("unknown.name", aiAttachments[3].Name);
             Assert.Equal("transactions.csv", aiAttachments[4].Name);
-            Assert.Equal("short_text.txt", aiAttachments[5].Name);
+            Assert.Equal("text.csv", aiAttachments[5].Name);
+            Assert.Equal("short_text.txt", aiAttachments[6].Name);
 
             Assert.Equal(AiAttachmentSource.FromDatabase, aiAttachments[0].Source);
             Assert.Equal(AiAttachmentSource.FromDatabase, aiAttachments[1].Source);
             Assert.Equal(AiAttachmentSource.NotFound, aiAttachments[2].Source);
             Assert.Equal(AiAttachmentSource.FromUser, aiAttachments[3].Source);
-            Assert.Equal("[Hash:'FLNK25A3VOpVPIiusBEZMwUU5mWqSZR7T2OqYF4nBfA=']", aiAttachments[0].DataAsBase64);
-            Assert.Equal("[Hash:'94IlaZrchKnAQBD3vQQ7sE0Yt6f0CJeu69Ljfb66bxo=']", aiAttachments[1].DataAsBase64);
-            Assert.Equal(string.Empty, aiAttachments[2].DataAsBase64);
-            Assert.Equal(BananaPngBase64, aiAttachments[3].DataAsBase64);
-            Assert.Equal(Encoding.UTF8.GetString(Csv).Substring(0, 97) + "...", aiAttachments[4].DataAsBase64);
-            Assert.Equal("sort text", aiAttachments[5].DataAsBase64);
+            Assert.Equal("[Hash:'FLNK25A3VOpVPIiusBEZMwUU5mWqSZR7T2OqYF4nBfA=']", aiAttachments[0].Data);
+            Assert.Equal("[Hash:'94IlaZrchKnAQBD3vQQ7sE0Yt6f0CJeu69Ljfb66bxo=']", aiAttachments[1].Data);
+            Assert.Equal(string.Empty, aiAttachments[2].Data);
+            Assert.Equal(BananaPngBase64, aiAttachments[3].Data);
+            Assert.Equal(Encoding.UTF8.GetString(Csv).Substring(0, 97) + "...", aiAttachments[4].Data);
+            Assert.Equal("emoji_אימוג'י_😀😁😂😍😎🙏🤔🚀🐱😀😁😂😍😎🙏🤔🚀_emoji_em...", aiAttachments[5].Data);
+            Assert.Equal("sort text", aiAttachments[6].Data);
         }
     }
 

@@ -108,11 +108,8 @@ var ai = new AI();
         _stats = stats.For(EtlOperations.Transform, start: false);
     }
 
-    private bool _testMode = false;
-
     public override void Initialize(bool debugMode)
     {
-        _testMode = debugMode;
         _configurationPartialHash = GetInitialHash(_configuration);
 
         base.Initialize(debugMode);
@@ -227,7 +224,7 @@ var ai = new AI();
                             }
                             else
                             {
-                                data = GetAttachmentDataAsBase64(attachment, type, preview: _testMode);
+                                data = GetAttachmentDataAsBase64(attachment, type, preview: DocumentScript.DebugMode);
                             }
                         }
                         else
@@ -239,8 +236,7 @@ var ai = new AI();
                                 throw new InvalidOperationException($"Attachment must be loaded or base64 string (on type {type})");
                         }
 
-                        result.Attachments.Add(new 
-                            AiAttachment(filename, type, source, data));
+                        result.Attachments.Add(new AiAttachment(filename, type, source, data));
                     }
                 }
                 _currentRun.Add(result);
@@ -250,37 +246,46 @@ var ai = new AI();
 
     public static string GetAttachmentDataAsBase64(Attachment attachment, string type, bool preview)
     {
+        if (preview)
+        {
+            if (type == AttachmentsRequestConstants.MediaTypeTextPlain)
+            {
+                const int stringSize = 100;
+                const int bufferSize = stringSize + 1;
+
+                Span<byte> bytes = stackalloc byte[bufferSize * 4];
+                int bytesRead = attachment.Stream.Read(bytes);
+                if (bytesRead <= 0)
+                    return string.Empty;
+
+                var decoder = Encoding.UTF8.GetDecoder();
+                Span<char> chars = stackalloc char[bufferSize];
+                int safeBytes = Math.Min(bytesRead, stringSize); // Limit because UTF8.GetChars can add one extra char if the last bytes start a multi-byte sequence
+                int read = decoder.GetChars(bytes[..safeBytes], chars, flush: false);
+                chars = chars[..read];
+                if (bytesRead > safeBytes)
+                    chars[^1] = chars[^2] = chars[^3] = '.';
+                
+                return new string(chars);
+            }
+
+            return $"[Hash:'{attachment.Base64Hash}']";
+        }
+
         using var memoryStream = RecyclableMemoryStreamFactory.GetRecyclableStream();
         if (type == AttachmentsRequestConstants.MediaTypeTextPlain)
         {
-            if (preview)
-            {
-                int size = 100;
-                Span<byte> buffer = stackalloc byte[100];
-                var read = attachment.Stream.Read(buffer);
-                if (read <= 0)
-                    return string.Empty;
-
-                if (read >= size)
-                    buffer[size - 3] = buffer[size - 2] = buffer[size - 1] = (byte)'.';
-                
-                return Encoding.ASCII.GetString(buffer[..read]);
-            }
-
             attachment.Stream.CopyTo(memoryStream);
         }
         else // anything but text is using BASE64
         {
-            if (preview)
-                return $"[Hash:'{attachment.Base64Hash}']";
-
             using var transform = new ToBase64Transform();
             using var cryptoStream = new CryptoStream(attachment.Stream, transform, CryptoStreamMode.Read);
             cryptoStream.CopyTo(memoryStream);
         }
 
         Span<byte> readOnlySpan = memoryStream.GetBuffer();
-        return Encoding.ASCII.GetString(readOnlySpan[..(int)memoryStream.Length]);
+        return Encoding.UTF8.GetString(readOnlySpan[..(int)memoryStream.Length]);
     }
 
     private static bool IsBase64(string data) => string.IsNullOrEmpty(data) == false && Base64.IsValid(data);
