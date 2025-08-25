@@ -12,7 +12,7 @@ public class GenAiResultItem
 
     public ContextOutput ContextOutput { get; set; }
 
-    public string DocId { get; set; }
+    public string DocumentId { get; set; }
 
     internal bool UpdateHash { get; set; } = true;
 
@@ -22,7 +22,7 @@ public class GenAiResultItem
         {
             [nameof(ContextOutput)] = ContextOutput?.ToJson(),
             [nameof(ModelOutput)] = ModelOutput?.ToJson(),
-            [nameof(DocId)] = DocId
+            [nameof(DocumentId)] = DocumentId
         };
     }
 }

@@ -251,7 +251,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
 
             item.ModelOutput = new ModelOutput
             {
-                Output = context.Sync.ReadForMemory(result, item.DocId)
+                Output = context.Sync.ReadForMemory(result, item.DocumentId)
             };
 
             statsScope.Usage ??= new AiUsage();
@@ -285,11 +285,11 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
                     // item again in the future.
                     item.UpdateHash = true;
                     var msg =
-                        $"Model call failed for context in document '{item.DocId}' ({singleEx.GetType().Name}). {Environment.NewLine}" +
+                        $"Model call failed for context in document '{item.DocumentId}' ({singleEx.GetType().Name}). {Environment.NewLine}" +
                         $"Context was: {item.ContextOutput.Context}{Environment.NewLine}" +
                         $"{singleEx}";
 
-                    Statistics.RecordPartialLoadError(msg, item.DocId);
+                    Statistics.RecordPartialLoadError(msg, item.DocumentId);
                     Logger.Warn(msg);
                     return null;
                 default:
@@ -501,9 +501,9 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
             foreach (var genAtt in item.ContextOutput.Attachments.Where(a => a.Source == AiAttachmentSource.FromDatabase))
             {
                 // try to reload again every loaded/not-found attachment
-                var attachment = Database.DocumentsStorage.AttachmentsStorage.GetAttachment(context, item.DocId, genAtt.Name, AttachmentType.Document, changeVector: null);
+                var attachment = Database.DocumentsStorage.AttachmentsStorage.GetAttachment(context, item.DocumentId, genAtt.Name, AttachmentType.Document, changeVector: null);
                 if (attachment == null)
-                    throw new InvalidOperationException($"The document '{item.DocId}' has no attachment with name '{genAtt.Name}' from type '{genAtt.Type}' anymore");
+                    throw new InvalidOperationException($"The document '{item.DocumentId}' has no attachment with name '{genAtt.Name}' from type '{genAtt.Type}' anymore");
                 
                 genAtt.Data = GenAiScriptTransformer.GetAttachmentDataAsBase64(attachment, genAtt.Type, preview);
             }
@@ -546,7 +546,7 @@ public sealed class GenAiTask : EtlProcess<GenAiItem, GenAiScriptResult, GenAiCo
         {
             var item = new GenAiResultItem
             {
-                DocId = scriptResult.DocumentId,
+                DocumentId = scriptResult.DocumentId,
 
                 ContextOutput = new ContextOutput
                 {
