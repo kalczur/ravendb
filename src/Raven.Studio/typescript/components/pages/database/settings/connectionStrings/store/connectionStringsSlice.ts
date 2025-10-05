@@ -19,6 +19,7 @@ import {
 import { accessManagerSelectors } from "components/common/shell/accessManagerSliceSelectors";
 import DatabaseUtils from "components/utils/DatabaseUtils";
 import { databaseSelectors } from "components/common/shell/databaseSliceSelectors";
+import { connectionStringsMappperFromDto, ravenConnectionStringMapperFromDto } from "./ConnectionStringsMappperFromDto";
 
 export type ConnectionStringsViewContext = "connectionStrings" | "aiConnectionStrings" | "aiTask";
 
@@ -101,6 +102,17 @@ export const connectionStringsSlice = createSlice({
                 const ongoingTasks = ongoingTasksDto.OngoingTasks;
 
                 const { connections, urlParameters } = state;
+
+                const connectionMappers: Record<
+                    Extract<StudioConnectionType, "Raven">,
+                    connectionStringsMappperFromDto
+                > = {
+                    Raven: new ravenConnectionStringMapperFromDto(connectionStringsDto, ongoingTasks),
+                };
+
+                Object.keys(connectionMappers).forEach((key: Extract<StudioConnectionType, "Raven">) => {
+                    connections[key] = connectionMappers[key].map();
+                });
 
                 connections.Sql = mapSqlConnectionsFromDto(connectionStringsDto.SqlConnectionStrings, ongoingTasks);
                 connections.Snowflake = mapSnowflakeConnectionsFromDto(
