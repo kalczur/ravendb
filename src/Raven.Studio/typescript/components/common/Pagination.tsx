@@ -39,7 +39,7 @@ export default function CustomPagination(props: CustomPaginationProps) {
                         onClick={withPreventDefault(() => onPageChange(i))}
                         linkClassName="no-decor"
                     >
-                        {i}
+                        {Number(i).toLocaleString()}
                     </Pagination.Item>
                 );
             }
@@ -68,7 +68,7 @@ export default function CustomPagination(props: CustomPaginationProps) {
                     linkClassName="no-decor"
                     key={totalPages}
                 >
-                    {totalPages}
+                    {Number(totalPages).toLocaleString()}
                 </Pagination.Item>
             );
         }

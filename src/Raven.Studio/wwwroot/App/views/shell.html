@@ -49,7 +49,31 @@
             <!-- ko with: $root.collectionsTracker.getAllDocumentsCollection() -->
             <a data-bind="click: $parent.menu.navigate.bind($parent.menu), attr: { href: $root.urlForCollection($data) }, css: { 'active': $parent.item.isOpen($parent.menu.activeItem, $data) }">
                 <i class="icon-documents"></i>
-                <span>All Documents</span>
+                <span>All Documents - Old</span>
+                <div class="collection-count" data-bind="attr: {title: documentCount().toLocaleString()}, css: { 'bounce': hasBounceClass }">
+                    <div class="value label label-default" data-bind="text: countPrefix"></div>
+                    <div data-bind="attr: { class: sizeClass }"></div>
+                </div>
+            </a>
+            <!-- /ko -->
+        </li>
+        <li>
+            <!-- ko with: $root.collectionsTracker.getAllDocumentsCollection() -->
+            <a data-bind="click: $parent.menu.navigate.bind($parent.menu), attr: { href: $root.urlForAllDocumentsReactLazyLoad($data) }">
+                <i class="icon-documents"></i>
+                <span>All Documents - React Lazy Load</span>
+                <div class="collection-count" data-bind="attr: {title: documentCount().toLocaleString()}, css: { 'bounce': hasBounceClass }">
+                    <div class="value label label-default" data-bind="text: countPrefix"></div>
+                    <div data-bind="attr: { class: sizeClass }"></div>
+                </div>
+            </a>
+            <!-- /ko -->
+        </li>
+        <li>
+            <!-- ko with: $root.collectionsTracker.getAllDocumentsCollection() -->
+            <a data-bind="click: $parent.menu.navigate.bind($parent.menu), attr: { href: $root.urlForAllDocumentsReactPagination($data) }">
+                <i class="icon-documents"></i>
+                <span>All Documents - React Pagination</span>
                 <div class="collection-count" data-bind="attr: {title: documentCount().toLocaleString()}, css: { 'bounce': hasBounceClass }">
                     <div class="value label label-default" data-bind="text: countPrefix"></div>
                     <div data-bind="attr: { class: sizeClass }"></div>

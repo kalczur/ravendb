@@ -57,7 +57,7 @@ export function useDocumentColumnsProvider(props: UseDocumentColumnsProviderProp
         const defaultColumnDefs = allColumnNames.map((columnName): ColumnDef<document> => {
             if (columnName === "__metadata") {
                 initialColumnVisibility["@id"] = true;
-                availableWidth -= defaultSize;
+                availableWidth -= 250;
 
                 return {
                     header: "@id",
@@ -70,6 +70,63 @@ export function useDocumentColumnsProvider(props: UseDocumentColumnsProviderProp
                         />
                     ),
                     enableHiding: false,
+                    size: 250,
+                };
+            }
+
+            if (columnName === "__metadata.collection") {
+                initialColumnVisibility["Collection"] = true;
+                availableWidth -= defaultSize;
+
+                return {
+                    header: "Collection",
+                    accessorFn: (x) => x?.__metadata.collection,
+                    cell: ({ getValue }) => (
+                        <CellDocumentValue
+                            value={getValue()}
+                            databaseName={databaseName}
+                            hasHyperlinkForIds={hasHyperlinkForIds}
+                        />
+                    ),
+                    enableHiding: false,
+                };
+            }
+
+            if (columnName === "__metadata.changeVector") {
+                initialColumnVisibility["Change Vector"] = true;
+                availableWidth -= 100;
+
+                return {
+                    header: "Change Vector",
+                    accessorFn: (x) => x?.__metadata.changeVector().split("-")[0],
+                    cell: ({ getValue }) => (
+                        <CellDocumentValue
+                            value={getValue()}
+                            databaseName={databaseName}
+                            hasHyperlinkForIds={hasHyperlinkForIds}
+                        />
+                    ),
+                    enableHiding: false,
+                    size: 100,
+                };
+            }
+
+            if (columnName === "__metadata.lastModified") {
+                initialColumnVisibility["Last Modified"] = true;
+                availableWidth -= 250;
+
+                return {
+                    header: "Last Modified",
+                    accessorFn: (x) => x?.__metadata.lastModified(),
+                    cell: ({ getValue }) => (
+                        <CellDocumentValue
+                            value={getValue()}
+                            databaseName={databaseName}
+                            hasHyperlinkForIds={hasHyperlinkForIds}
+                        />
+                    ),
+                    enableHiding: false,
+                    size: 250,
                 };
             }
 
@@ -126,8 +183,16 @@ function findColumnNames(documents: document[], prioritizedColumns = ["__metadat
 function extractUniquePropertyNames(documents: document[]) {
     const uniquePropertyNames = new Set(documents.filter((x) => x).flatMap((x) => Object.keys(x)));
 
+    if (documents[0]) {
+        console.log("kalczur documents[0]", documents[0]);
+    }
+
     if (!documents.every((x) => x && x.__metadata && x.getId())) {
         uniquePropertyNames.delete("__metadata");
+    } else {
+        uniquePropertyNames.add("__metadata.changeVector");
+        uniquePropertyNames.add("__metadata.lastModified");
+        uniquePropertyNames.add("__metadata.collection");
     }
 
     return Array.from(uniquePropertyNames);

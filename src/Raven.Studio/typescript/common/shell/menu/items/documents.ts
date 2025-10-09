@@ -5,6 +5,8 @@ import collectionsTracker = require("common/helpers/database/collectionsTracker"
 import DocumentIdentities = require("components/pages/database/documents/identities/DocumentIdentities");
 import reactUtils = require("common/reactUtils");
 import AllRevisions = require("components/pages/database/documents/allRevisions/AllRevisions");
+import AllDocumentsLazyLoad = require("components/pages/database/documents/allDocuments/AllDocumentsLazyLoad");
+import AllDocumentsPagination = require("components/pages/database/documents/allDocuments/AllDocumentsPagination");
 
 export = getDocumentsMenuItem;
 
@@ -21,6 +23,24 @@ function getDocumentsMenuItem(appUrls: computedAppUrls) {
             search: {
                 alternativeTitles: ["Documents"]
             }
+        }),
+        new leafMenuItem({
+            route: "databases/documents/allDocuments/reactLazyLoad",
+            moduleId: reactUtils.bridgeToReact(AllDocumentsLazyLoad.default, "shardedView"),
+            shardingMode: "allShards",
+            title: "All Documents - React Lazy Load",
+            nav: false,
+            css: "icon-documents",
+            dynamicHash: appUrls.documents,
+        }),
+        new leafMenuItem({
+            route: "databases/documents/allDocuments/reactPagination",
+            moduleId: reactUtils.bridgeToReact(AllDocumentsPagination.default, "shardedView"),
+            shardingMode: "allShards",
+            title: "All Documents - React Pagination",
+            nav: false,
+            css: "icon-documents",
+            dynamicHash: appUrls.documents,
         }),
         new leafMenuItem({
             route: "databases/documents/revisions/all",

@@ -31,6 +31,8 @@ class appUrl {
         clientConfiguration: ko.pureComputed(() => appUrl.forClientConfiguration(appUrl.currentDatabase())),
         studioConfiguration: ko.pureComputed(() => appUrl.forStudioConfiguration(appUrl.currentDatabase())),
         documents: ko.pureComputed(() => appUrl.forDocuments(null, appUrl.currentDatabase())),
+        allDocumentsReactLazyLoad: ko.pureComputed(() => appUrl.forAllDocumentsReactLazyLoad(appUrl.currentDatabase())),
+        allDocumentsReactPagination: ko.pureComputed(() => appUrl.forAllDocumentsReactPagination(appUrl.currentDatabase())),
         allRevisions: ko.pureComputed(() => appUrl.forAllRevisions(appUrl.currentDatabase())),
         revisionsBin: ko.pureComputed(() => appUrl.forRevisionsBin(appUrl.currentDatabase())),
         conflicts: ko.pureComputed(() => appUrl.forConflicts(appUrl.currentDatabase())),
@@ -473,6 +475,16 @@ class appUrl {
         const collectionPart = collectionName ? "collection=" + encodeURIComponent(collectionName) : "";
         
         return "#databases/documents?" + collectionPart + appUrl.getEncodedDbPart(db);
+    }
+
+    static forAllDocumentsReactLazyLoad(db: database | string): string {
+        const databasePart = appUrl.getEncodedDbPart(db);
+        return "#databases/documents/allDocuments/reactLazyLoad?" + databasePart;
+    }
+
+    static forAllDocumentsReactPagination(db: database | string): string {
+        const databasePart = appUrl.getEncodedDbPart(db);
+        return "#databases/documents/allDocuments/reactPagination?" + databasePart;
     }
 
     static forAllRevisions(db: database | string): string {
