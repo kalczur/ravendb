@@ -1,22 +1,31 @@
+
+// import aiAgentsTypes = require("components/pages/database/aiHub/aiAgents/utils/aiAgentsTypes");
+
 import commandBase = require("commands/commandBase");
-import aiAgentsTypes = require("components/pages/database/aiHub/aiAgents/utils/aiAgentsTypes");
 import endpoints = require("endpoints");
 
-class testAiAgentCommand extends commandBase {
-    constructor(
-        private db: string,
-        private dto: Raven.Server.Documents.Handlers.AI.Agents.AiAgentProcessorForTestConversation.AiAgentTestRequest,
-    ) {
+type AiAgentTestRequest = Raven.Server.Documents.Handlers.AI.Agents.AiAgentProcessorForTestConversation.AiAgentTestRequest;
+
+export default class runChatbotAiAssistantCommand extends commandBase {
+    constructor(private db: string, private dto: AiAgentTestRequest, private isStreaming: boolean, private streamPropertyPath: string) {
         super();
     }
 
-    execute(): JQueryPromise<aiAgentsTypes.AiAgentRunResult> {
-        const url = endpoints.databases.aiAgent.aiAgentTest;
+    execute() {
+        const args = {
+            streaming: !!this.isStreaming,
+            streamPropertyPath: this.streamPropertyPath,
+        };
 
-        return this.post(url, JSON.stringify(this.dto), this.db).fail((response: JQueryXHR) =>
-            this.reportError("Failed to test AI agent", response.responseText, response.statusText)
-        );
+        const relativeUrl = endpoints.databases.aiAgent.aiAgentTest + this.urlEncodeArgs(args);
+
+        return this.fetch({
+            relativeUrl,
+            db: this.db,
+            options: {
+                method: "POST",
+                body: JSON.stringify(this.dto),
+            },
+        });
     }
 }
-
-export = testAiAgentCommand;

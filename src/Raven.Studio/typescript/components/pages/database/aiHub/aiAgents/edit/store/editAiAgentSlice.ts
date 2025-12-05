@@ -44,6 +44,15 @@ export const editAiAgentSlice = createSlice({
         testMessagesSet: (state, action: PayloadAction<AiAgentMessage[]>) => {
             state.testMessages = action.payload;
         },
+        testMessageAdded: (state, action: PayloadAction<AiAgentMessage>) => {
+            state.testMessages.push(action.payload);
+        },
+        testMessageUpdated: (state, action: PayloadAction<{ id: string; content: string }>) => {
+            const message = state.testMessages.find((x) => x.id === action.payload.id);
+            if (message) {
+                message.content = action.payload.content;
+            }
+        },
         testToolParametersSet: (state, action: PayloadAction<AiAgentToolCall[]>) => {
             state.testToolParameters = action.payload;
         },
@@ -84,6 +93,7 @@ const getIsDocumentExpirationEnabled = createAsyncThunk(
     }
 );
 
+// TODO
 const runTest = createAsyncThunk(
     editAiAgentSlice.name + "/runTest",
     async (
@@ -94,28 +104,82 @@ const runTest = createAsyncThunk(
             toolCallParameters?: AiAgentToolCall[];
             allQueriesNames: string[];
         },
-        { getState }
+        { getState, dispatch }
     ): Promise<{ result: AiAgentRunResult; allQueriesNames: string[] }> => {
         const { databaseName, configuration, testFormValues, toolCallParameters, allQueriesNames } = payload;
 
         const state = getState() as RootState;
         const testDocument = state.editAiAgent.testDocument;
 
-        const result = await services.aiAgentService.testAiAgent(databaseName, {
-            Configuration: configuration,
-            UserPrompt: toolCallParameters?.length > 0 ? null : testFormValues.prompt,
-            ActionResponses: toolCallParameters?.map((x) => ({
-                ToolId: x.id,
-                Content: x.arguments,
-            })),
-            Document: testDocument,
-            RequestBody: undefined,
-            CreationOptions: {
-                Parameters: Object.fromEntries(testFormValues.parameters.map((item) => [item.name, item.value])),
+        const response = await services.aiAgentService.testAiAgent(
+            databaseName,
+            {
+                Configuration: configuration,
+                UserPrompt: toolCallParameters?.length > 0 ? null : testFormValues.prompt,
+                ActionResponses: toolCallParameters?.map((x) => ({
+                    ToolId: x.id,
+                    Content: x.arguments,
+                })),
+                Document: testDocument,
+                RequestBody: undefined,
+                CreationOptions: {
+                    Parameters: Object.fromEntries(testFormValues.parameters.map((item) => [item.name, item.value])),
+                },
             },
-        });
+            true,
+            "Answer"
+        );
 
-        return { result, allQueriesNames };
+        const streamContentObject = {
+            Answer: "",
+        };
+
+        const answerId = _.uniqueId();
+
+        dispatch(
+            editAiAgentActions.testMessageAdded({
+                id: answerId,
+                role: "assistant",
+                content: JSON.stringify(streamContentObject),
+                state: "success",
+            })
+        );
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+            const { done, value } = await reader.read();
+            console.log("kalczur done", done);
+            if (done) {
+                break;
+            }
+
+            const responseString = decoder.decode(value, { stream: true });
+            const responseLines = responseString.split("\n");
+
+            console.log("kalczur responseString", responseString);
+
+            for (const line of responseLines) {
+                console.log("kalczur line", line);
+                if (line.startsWith('"')) {
+                    console.log("kalczur is stream");
+                    streamContentObject.Answer += line;
+                    dispatch(
+                        editAiAgentActions.testMessageUpdated({
+                            id: answerId,
+                            content: JSON.stringify(streamContentObject),
+                        })
+                    );
+                } else if (line.startsWith("{")) {
+                    console.log("kalczur is end");
+                    return { result: JSON.parse(line), allQueriesNames };
+                }
+            }
+        }
+
+        return { result: null, allQueriesNames };
     }
 );
 
