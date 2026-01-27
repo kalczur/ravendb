@@ -5,6 +5,7 @@ import BackupsPage = require("components/pages/database/tasks/backups/BackupsPag
 import CreateSampleData = require("components/pages/database/tasks/createSampleData/CreateSampleData");
 import OngoingTasksPage = require("components/pages/database/tasks/ongoingTasks/OngoingTasksPage");
 import AddNewOngoingTask = require("components/pages/database/tasks/ongoingTasks/AddNewOngoingTask");
+import BackupsHistory =  require("components/pages/database/tasks/backups/history/BackupsHistory");
 
 export = getTasksMenuItem;
 
@@ -18,6 +19,16 @@ function getTasksMenuItem(appUrls: computedAppUrls) {
             nav: true,
             css: 'icon-backups',
             dynamicHash: appUrls.backupsUrl,
+        }),
+        new leafMenuItem({
+            route: 'databases/tasks/backups/history',
+            moduleId: reactUtils.bridgeToReact(BackupsHistory.BackupsHistory, "nonShardedView"),
+            shardingMode: "allShards",
+            title: 'Backups History',
+            nav: false,
+            css: 'icon-backups-history',
+            dynamicHash: appUrls.backupsHistoryUrl,
+            itemRouteToHighlight: 'databases/tasks/backups',
         }),
         new leafMenuItem({
             route: 'databases/tasks/editPeriodicBackupTask',

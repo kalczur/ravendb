@@ -82,6 +82,7 @@ using Raven.Server.Documents.Indexes.Spatial;
 using Raven.Server.Documents.Indexes.Test;
 using Raven.Server.Documents.Patch;
 using Raven.Server.Documents.PeriodicBackup;
+using Raven.Server.Documents.PeriodicBackup.BackupHistory;
 using Raven.Server.Documents.PeriodicBackup.Restore;
 using Raven.Server.Documents.Queries;
 using Raven.Server.Documents.Queries.Dynamic;
@@ -505,6 +506,8 @@ namespace TypingsGenerator
             scripter.AddType(typeof(BackupProgress));
             scripter.AddType(typeof(StartBackupOperationResult));
             scripter.AddType(typeof(GetPeriodicBackupStatusOperationResult));
+            scripter.AddType(typeof(BackupHistory));
+            scripter.AddType(typeof(BackupResult));
 
             // ongoing tasks - subscription
             scripter.AddType(typeof(OngoingTaskSubscription));

@@ -1,0 +1,19 @@
+@use "sass:list";
+
+.backups-history {
+    $columns: minmax(160px, 1fr) // task-name
+        minmax(80px, 1fr) // node
+        minmax(80px, 1fr) // type
+        minmax(80px, 1fr) // kind
+        minmax(120px, 1fr) // date
+        minmax(100px, 1fr) // duration
+        minmax(100px, 1fr) // status
+        32px; // preview
+
+    &__header,
+    &__item-header {
+        display: grid;
+        grid-template-columns: $columns;
+        align-items: center;
+    }
+}

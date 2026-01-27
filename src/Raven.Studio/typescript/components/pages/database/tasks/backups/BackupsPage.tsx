@@ -247,6 +247,11 @@ export function BackupsPage() {
         router.navigate(url);
     };
 
+    const navigateToBackupHistory = () => {
+        const url = appUrl.forBackupsHistory(db.name);
+        router.navigate(url);
+    };
+
     const { onTaskOperation, operationConfirm, cancelOperationConfirm, isDeleting, isTogglingState } =
         useOngoingTasksOperations(reload);
 
@@ -279,6 +284,13 @@ export function BackupsPage() {
             <div className="flex-vertical">
                 {hasDatabaseAdminAccess && (
                     <div className="flex-shrink-0 hstack gap-2 mb-4">
+                        <Button
+                            variant="secondary"
+                            onClick={navigateToBackupHistory}
+                            title="Navigate to backup history"
+                        >
+                            <Icon icon="backup-history" /> View Backup History
+                        </Button>
                         <Button
                             variant="secondary"
                             onClick={navigateToRestoreDatabase}

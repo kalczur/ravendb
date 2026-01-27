@@ -45,6 +45,7 @@ interface computedAppUrls {
     migrateDatabaseUrl: KnockoutComputed<string>;
     sampleDataUrl: KnockoutComputed<string>;
     backupsUrl: KnockoutComputed<string>;
+    backupsHistoryUrl: KnockoutComputed<string>;
     ongoingTasksUrl: KnockoutComputed<string>;
     addNewOngoingTaskUrl: KnockoutComputed<string>;
     editExternalReplicationTaskUrl: KnockoutComputed<string>;

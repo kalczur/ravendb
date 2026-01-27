@@ -64,6 +64,7 @@ class appUrl {
         migrateDatabaseUrl: ko.pureComputed(() => appUrl.forMigrateDatabase(appUrl.currentDatabase())),
         sampleDataUrl: ko.pureComputed(() => appUrl.forSampleData(appUrl.currentDatabase())),
         backupsUrl: ko.pureComputed(() => appUrl.forBackups(appUrl.currentDatabase())),
+        backupsHistoryUrl: ko.pureComputed(() => appUrl.forBackupsHistory(appUrl.currentDatabase())),
         ongoingTasksUrl: ko.pureComputed(() => appUrl.forOngoingTasks(appUrl.currentDatabase())),
         addNewOngoingTaskUrl: ko.pureComputed(() => appUrl.forAddNewOngoingTasks(appUrl.currentDatabase())),
         editExternalReplicationTaskUrl: ko.pureComputed(() => appUrl.forEditExternalReplication(appUrl.currentDatabase())),
@@ -569,6 +570,11 @@ class appUrl {
     static forBackups(db: database | string): string {
         const databasePart = appUrl.getEncodedDbPart(db);
         return "#databases/tasks/backups?" + databasePart;
+    }
+
+    static forBackupsHistory(db: database | string): string {
+        const databasePart = appUrl.getEncodedDbPart(db);
+        return "#databases/tasks/backups/history?" + databasePart;
     }
     
     static forOngoingTasks(db: database | string): string {

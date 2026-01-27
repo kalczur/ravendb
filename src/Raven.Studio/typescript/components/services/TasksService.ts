@@ -29,6 +29,8 @@ import getBackupLocationCommand from "commands/database/tasks/getBackupLocationC
 import testAzureQueueStorageServerConnectionCommand from "commands/database/cluster/testAzureQueueStorageServerConnectionCommand";
 import replicationProgressCommand from "commands/database/tasks/replicationProgressCommand";
 import internalReplicationProgressCommand from "commands/database/tasks/internalReplicationProgressCommand";
+import getPeriodicBackupHistory from "commands/database/tasks/getPeriodicBackupHistory";
+import getPeriodicBackupResult from "commands/database/tasks/getPeriodicBackupResult";
 
 export default class TasksService {
     async getOngoingTasks(databaseName: string, location: databaseLocationSpecifier) {
@@ -165,5 +167,13 @@ export default class TasksService {
 
     async getBackupLocation(path: string, databaseName: string) {
         return new getBackupLocationCommand(path, databaseName).execute();
+    }
+
+    async getPeriodicBackupHistory(...args: ConstructorParameters<typeof getPeriodicBackupHistory>) {
+        return new getPeriodicBackupHistory(...args).execute();
+    }
+
+    async getPeriodicBackupResult(...args: ConstructorParameters<typeof getPeriodicBackupResult>) {
+        return new getPeriodicBackupResult(...args).execute();
     }
 }
