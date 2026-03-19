@@ -44,6 +44,8 @@ export default function useChatAiAgent(queryParams: ChatAiAgentQueryParams) {
     useEffect(() => {
         if (databaseChangesApi && conversationId) {
             const watchDocument = databaseChangesApi.watchDocument(conversationId, (e) => {
+                console.log("kalczur watchDocument", { currentDocumentChangeVector, conversationId, e });
+
                 if (isLoading || e.ChangeVector === currentDocumentChangeVector) {
                     return;
                 }
@@ -78,6 +80,7 @@ export default function useChatAiAgent(queryParams: ChatAiAgentQueryParams) {
 
         return {
             prompts: [{ text: "" }],
+            attachments: [],
             parameters: config.Parameters.map((x) => ({ name: x.Name, value: "" })),
             isEnableDocumentExpiration: !isDocumentExpirationEnabled,
             isDocumentExpireInCustomizeEnabled: false,
@@ -123,6 +126,7 @@ export default function useChatAiAgent(queryParams: ChatAiAgentQueryParams) {
         ).unwrap();
 
         setValue("prompts", [{ text: "" }]);
+        setValue("attachments", []);
     };
 
     const handleSend = async () => {

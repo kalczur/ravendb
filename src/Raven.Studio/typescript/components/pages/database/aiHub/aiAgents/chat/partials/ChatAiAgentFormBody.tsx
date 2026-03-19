@@ -4,7 +4,7 @@ import { FormInput } from "components/common/Form";
 import { useAppDispatch, useAppSelector } from "components/store";
 import { useRef, useEffect } from "react";
 import Spinner from "react-bootstrap/Spinner";
-import { useFormContext, useWatch, UseFieldArrayReturn } from "react-hook-form";
+import { Controller, useFormContext, useWatch, UseFieldArrayReturn } from "react-hook-form";
 import AiAgentMessages from "../../partials/AiAgentMessages";
 import AiAgentParametersField from "../../partials/AiAgentParametersField";
 import { AiAgentToolCall } from "../../utils/aiAgentsTypes";
@@ -17,6 +17,7 @@ import { databaseSelectors } from "components/common/shell/databaseSliceSelector
 import { useAppUrls } from "components/hooks/useAppUrls";
 import "./ChatAiAgentFormBody.scss";
 import ChatAiAgentPromptActions from "./ChatAiAgentPromptActions";
+import FileDropzone from "components/common/FileDropzone";
 
 interface ChatAiAgentFormBodyProps {
     height: number;
@@ -85,7 +86,9 @@ export default function ChatAiAgentFormBody({
 
     const isPromptDisabled =
         isLoading || isWaitingForActionToolSubmit || isDocumentDeleted || isDocumentChanged || config.data?.Disabled;
-    const hasPromptErrors = formState.errors.prompts?.length > 0;
+    const hasPromptErrors = !!formState.errors.prompts;
+    const attachments = formValues.attachments ?? [];
+    const attachmentsKey = attachments.map((x) => `${x.name}-${x.size}-${x.lastModified}`).join("|");
 
     return (
         <>
@@ -161,6 +164,21 @@ export default function ChatAiAgentFormBody({
                                 .
                             </RichAlert>
                         )}
+                        <div className="mb-2">
+                            <Controller
+                                name="attachments"
+                                control={control}
+                                render={({ field }) => (
+                                    <FileDropzone
+                                        key={attachmentsKey}
+                                        maxFiles={20}
+                                        initialFiles={field.value ?? []}
+                                        onChange={field.onChange}
+                                        validExtensions={["txt", "pdf", "jpg", "jpeg", "png", "gif", "webp"]}
+                                    />
+                                )}
+                            />
+                        </div>
                         <div
                             className={classNames("prompt-wrapper", {
                                 "border-danger": hasPromptErrors,

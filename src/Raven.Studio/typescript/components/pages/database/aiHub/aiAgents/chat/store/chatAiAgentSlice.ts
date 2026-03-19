@@ -139,6 +139,7 @@ const getDocument = createAsyncThunk(
     async (payload: { databaseName: string; id: string }): Promise<documentDto> => {
         const result = await services.databasesService.getDocumentWithMetadata(payload.id, payload.databaseName);
 
+        console.log("kalczur document result", result);
         if (result instanceof document) {
             return result.toDto(true);
         }
@@ -167,13 +168,18 @@ const runChat = createAsyncThunk(
         const result = await services.aiAgentService.runAiAgent(
             databaseName,
             {
-                UserPrompt: getUserPrompt(toolCallParameters?.length ?? 0, formValues.prompts),
+                UserPrompt: getUserPrompt(
+                    toolCallParameters?.length ?? 0,
+                    formValues.prompts,
+                    formValues.attachments?.length ?? 0
+                ),
                 ArtificialActions: [],
                 ActionResponses: toolCallParameters?.map((x) => ({
                     ToolId: x.id,
                     Content: x.arguments,
                 })),
                 AttachmentCommands: null,
+                attachments: formValues.attachments,
                 CreationOptions: {
                     Parameters:
                         conversationId == null
@@ -190,6 +196,9 @@ const runChat = createAsyncThunk(
             conversationId != null ? conversationId : formValues.persistenceConversationIdPrefix,
             changeVector
         );
+
+        console.log("kalczur run result", result);
+
         dispatch(chatAiAgentActions.activePromptIndexSet(0));
         dispatch(chatAiAgentActions.conversationIdSet(result.ConversationId));
         await dispatch(chatAiAgentActions.getDocument({ databaseName, id: result.ConversationId })).unwrap();
@@ -198,21 +207,28 @@ const runChat = createAsyncThunk(
 
 function getUserPrompt(
     toolCallParametersCount: number,
-    prompts: ChatAiAgentFormData["prompts"]
+    prompts: ChatAiAgentFormData["prompts"],
+    attachmentsCount: number
 ): RunAiAgentRequestDto["UserPrompt"] {
     if (toolCallParametersCount > 0) {
         return null;
     }
 
-    if (!prompts?.length) {
+    const validPrompts = prompts?.filter((x) => x?.text?.trim()) ?? [];
+
+    if (!validPrompts.length) {
+        if (attachmentsCount > 0) {
+            return null;
+        }
+
         throw new Error("Prompt is required");
     }
 
-    if (prompts.length > 1) {
-        return prompts.map((x) => ({ type: "text", text: x.text }));
+    if (validPrompts.length > 1) {
+        return validPrompts.map((x) => ({ type: "text", text: x.text.trim() }));
     }
 
-    return prompts[0].text;
+    return validPrompts[0].text.trim();
 }
 
 const getIsDocumentExpirationEnabled = createAsyncThunk(
