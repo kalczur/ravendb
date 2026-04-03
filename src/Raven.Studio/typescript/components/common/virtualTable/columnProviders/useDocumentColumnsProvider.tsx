@@ -77,6 +77,7 @@ export function useDocumentColumnsProvider(props: UseDocumentColumnsProviderProp
             availableWidth -= defaultSize;
 
             return {
+                id: columnName,
                 header: columnName,
                 accessorFn: (doc) => doc.getValue(columnName),
                 cell: ({ getValue }) => (
