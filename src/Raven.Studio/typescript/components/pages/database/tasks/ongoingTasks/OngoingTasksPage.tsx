@@ -6,6 +6,7 @@ import {
     OngoingTaskEmbeddingsGenerationInfo,
     OngoingTaskAmazonSqsEtlInfo,
     OngoingTaskAzureQueueStorageEtlInfo,
+    OngoingTaskCdcSinkInfo,
     OngoingTaskElasticSearchEtlInfo,
     OngoingTaskExternalReplicationInfo,
     OngoingTaskInfo,
@@ -53,6 +54,7 @@ import { OngoingTasksFilterCriteria } from "./partials/OngoingTasksFilter";
 import OngoingTaskOperationConfirm from "../shared/OngoingTaskOperationConfirm";
 import { KafkaSinkPanel } from "components/pages/database/tasks/ongoingTasks/panels/KafkaSinkPanel";
 import { RabbitMqSinkPanel } from "components/pages/database/tasks/ongoingTasks/panels/RabbitMqSinkPanel";
+import { CdcSinkPanel } from "components/pages/database/tasks/ongoingTasks/panels/CdcSinkPanel";
 import { CounterBadge } from "components/common/CounterBadge";
 import { getLicenseLimitReachStatus } from "components/utils/licenseLimitsUtils";
 import { useAppSelector } from "components/store";
@@ -204,6 +206,7 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
         amazonSqsEtls,
         kafkaSinks,
         rabbitMqSinks,
+        cdcSinks,
         elasticSearchEtls,
         embeddingsGenerations,
         genAiTasks,
@@ -230,7 +233,7 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
         ...amazonSqsEtls,
     ];
 
-    const sinks = [...kafkaSinks, ...rabbitMqSinks];
+    const sinks = [...kafkaSinks, ...rabbitMqSinks, ...cdcSinks];
 
     useEffect(() => {
         throttledUpdateLicenseLimitsUsage();
@@ -690,6 +693,9 @@ export function OngoingTasksPage({ isAiOnly = false }: OngoingTasksPageProps) {
                                         {rabbitMqSinks.map((x) => (
                                             <RabbitMqSinkPanel {...sharedPanelProps} key={taskKey(x.shared)} data={x} />
                                         ))}
+                                        {cdcSinks.map((x) => (
+                                            <CdcSinkPanel {...sharedPanelProps} key={taskKey(x.shared)} data={x} />
+                                        ))}
                                     </div>
                                 )}
                             </>
@@ -730,7 +736,9 @@ function filterOngoingTask(sharedInfo: OngoingTaskSharedInfo, filter: OngoingTas
 
     const isSinkTypeMatching =
         filter.types.includes("Sink") &&
-        (sharedInfo.taskType === "KafkaQueueSink" || sharedInfo.taskType === "RabbitQueueSink");
+        (sharedInfo.taskType === "KafkaQueueSink" ||
+            sharedInfo.taskType === "RabbitQueueSink" ||
+            sharedInfo.taskType === "CdcSink");
 
     const isBackupTypeMatching = filter.types.includes("Backup") && sharedInfo.taskType === "Backup";
 
@@ -784,6 +792,7 @@ function getFilteredTasks(state: OngoingTasksState, filter: OngoingTasksFilterCr
         rabbitMqSinks: filteredTasks.filter(
             (x) => x.shared.taskType === "RabbitQueueSink"
         ) as OngoingTaskRabbitMqSinkInfo[],
+        cdcSinks: filteredTasks.filter((x) => x.shared.taskType === "CdcSink") as OngoingTaskCdcSinkInfo[],
         elasticSearchEtls: filteredTasks.filter(
             (x) => x.shared.taskType === "ElasticSearchEtl"
         ) as OngoingTaskElasticSearchEtlInfo[],
