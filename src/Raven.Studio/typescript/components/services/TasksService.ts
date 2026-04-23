@@ -36,6 +36,7 @@ import saveEtlTaskCommand from "commands/database/tasks/saveEtlTaskCommand";
 import testGenAiCommand from "commands/database/tasks/testGenAiCommand";
 import geAiModelsCommand from "commands/database/tasks/geAiModelsCommand";
 import getJsonSchemaFromSampleObjectCommand from "commands/database/tasks/getJsonSchemaFromSampleObjectCommand";
+import fetchSqlDatabaseSchemaCommand from "commands/database/tasks/fetchSqlDatabaseSchemaCommand";
 
 export default class TasksService {
     async getOngoingTasks(databaseName: string, location: databaseLocationSpecifier) {
@@ -207,5 +208,9 @@ export default class TasksService {
 
     async getJsonSchemaFromSampleObject(...args: ConstructorParameters<typeof getJsonSchemaFromSampleObjectCommand>) {
         return new getJsonSchemaFromSampleObjectCommand(...args).execute();
+    }
+
+    async fetchSqlDatabaseSchema(...args: ConstructorParameters<typeof fetchSqlDatabaseSchemaCommand>) {
+        return new fetchSqlDatabaseSchemaCommand(...args).execute();
     }
 }
