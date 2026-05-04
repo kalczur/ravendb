@@ -37,6 +37,9 @@ import testGenAiCommand from "commands/database/tasks/testGenAiCommand";
 import geAiModelsCommand from "commands/database/tasks/geAiModelsCommand";
 import getJsonSchemaFromSampleObjectCommand from "commands/database/tasks/getJsonSchemaFromSampleObjectCommand";
 import fetchSqlDatabaseSchemaCommand from "commands/database/tasks/fetchSqlDatabaseSchemaCommand";
+import testCdcSinkCommand from "commands/database/tasks/testCdcSinkCommand";
+import verifyCdcSinkCommand from "commands/database/tasks/verifyCdcSinkCommand";
+import saveCdcSinkTaskCommand from "commands/database/tasks/saveCdcSinkTaskCommand";
 
 export default class TasksService {
     async getOngoingTasks(databaseName: string, location: databaseLocationSpecifier) {
@@ -212,5 +215,17 @@ export default class TasksService {
 
     async fetchSqlDatabaseSchema(...args: ConstructorParameters<typeof fetchSqlDatabaseSchemaCommand>) {
         return new fetchSqlDatabaseSchemaCommand(...args).execute();
+    }
+
+    async testCdcSink(...args: ConstructorParameters<typeof testCdcSinkCommand>) {
+        return new testCdcSinkCommand(...args).execute();
+    }
+
+    async verifyCdcSink(...args: ConstructorParameters<typeof verifyCdcSinkCommand>) {
+        return new verifyCdcSinkCommand(...args).execute();
+    }
+
+    async saveCdcSinkTask(...args: ConstructorParameters<typeof saveCdcSinkTaskCommand>) {
+        return new saveCdcSinkTaskCommand(...args).execute();
     }
 }
