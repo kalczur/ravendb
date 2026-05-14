@@ -142,6 +142,7 @@ using LicenseConfiguration = Raven.Server.Config.Categories.LicenseConfiguration
 using Operation = Raven.Server.Documents.Operations.Operation;
 using PatchRequest = Raven.Server.Documents.Patch.PatchRequest;
 using Size = Sparrow.Size;
+using Raven.Server.Documents.CdcSink.Stats.Performance;
 
 namespace TypingsGenerator
 {
@@ -604,6 +605,11 @@ namespace TypingsGenerator
             scripter.AddType(typeof(TestCdcSinkScript));
             scripter.AddType(typeof(TestCdcSinkScriptResult));
             scripter.AddType(typeof(CdcSinkVerificationResult));
+            scripter.AddType(typeof(CdcSinkPerformanceOperation));
+            scripter.AddType(typeof(CdcSinkPerformanceStats));
+            scripter.AddType(typeof(CdcSinkProcessPerformanceStats));
+            scripter.AddType(typeof(CdcSinkTaskPerformanceStats));
+
 
             // ongoing tasks - Snowflake ETL
             scripter.AddType(typeof(OngoingTaskSnowflakeEtl));
