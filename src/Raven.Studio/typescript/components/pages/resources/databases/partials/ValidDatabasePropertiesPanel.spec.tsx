@@ -80,6 +80,31 @@ describe("ValidDatabasePropertiesPanel", () => {
                 expect(getLocalGeneralInfo(dbStates, "B").totalDocuments).toBe(20);
             });
 
+            it("can get values from a remote node when local node is not part of database group", () => {
+                const dbStates: locationAwareLoadableData<DatabaseLocalInfo>[] = [
+                    getDatabaseLocalInfo({
+                        status: "success",
+                        location: { nodeTag: "A" },
+                        documentsCount: 10,
+                        totalSize: { SizeInBytes: 1, HumaneSize: "1 B" },
+                        tempBuffersSize: { SizeInBytes: 2, HumaneSize: "2 B" },
+                    }),
+                    getDatabaseLocalInfo({
+                        status: "success",
+                        location: { nodeTag: "B" },
+                        documentsCount: 20,
+                        totalSize: { SizeInBytes: 3, HumaneSize: "3 B" },
+                        tempBuffersSize: { SizeInBytes: 4, HumaneSize: "4 B" },
+                    }),
+                ];
+
+                const info = getLocalGeneralInfo(dbStates, "D");
+
+                expect(info.hasLocalNodeAllData).toBe(true);
+                expect(info.totalDocuments).toBe(10);
+                expect(info.totalSizeWithTempBuffers).toBe(3);
+            });
+
             it("can get total size", () => {
                 const dbStates: locationAwareLoadableData<DatabaseLocalInfo>[] = [
                     getDatabaseLocalInfo({
