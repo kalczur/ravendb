@@ -64,6 +64,7 @@ import ProtractedRequestMessage = require("components/shell/partials/ProtractedR
 import typeUtils = require("common/typeUtils");
 import Chatbot = require("components/shell/chatbot/Chatbot");
 import ChatbotNavIcon = require("components/shell/chatbot/ChatbotNavIcon");
+import LanguageSwitcherNavIcon = require("components/shell/languageSwitcher/LanguageSwitcherNavIcon");
 import getSettingsAiAssistantCommand = require("commands/aiAssistant/getSettingsAiAssistantCommand");
 import chatbotSlice = require("components/shell/chatbot/store/chatbotSlice");
 import aiAssistantSlice = require("components/common/shell/aiAssistantSlice");
@@ -144,6 +145,7 @@ class shell extends viewModelBase {
 
     chatbotNavIconView: ReactInKnockout<typeof ChatbotNavIcon.default>;
     chatbotView: ReactInKnockout<typeof Chatbot.default>;
+    languageSwitcherNavIconView: ReactInKnockout<typeof LanguageSwitcherNavIcon.default>;
 
     constructor() {
         super();
@@ -307,6 +309,10 @@ class shell extends viewModelBase {
 
         this.chatbotNavIconView = ko.computed(() => ({
             component: ChatbotNavIcon.default,
+        }));
+
+        this.languageSwitcherNavIconView = ko.pureComputed(() => ({
+            component: LanguageSwitcherNavIcon.default,
         }));
 
         this.chatbotView = ko.pureComputed(() => ({

@@ -30,6 +30,9 @@
             <div style="flex-grow: 1;" data-bind="react: $root.studioSearchWithDatabaseSwitcherView"></div>
             <ul class="nav navbar-nav navbar-right">
                 <li>
+                    <div data-bind="react: $root.languageSwitcherNavIconView"></div>
+                </li>
+                <li>
                     <button title="Change theme" class="btn theme-change no-decor nav-icon" data-bind="click: $data.constructor.chooseTheme">
                         <i class="icon-theme"></i>
                     </button>

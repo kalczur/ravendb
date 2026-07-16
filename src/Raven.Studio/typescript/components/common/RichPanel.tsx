@@ -107,11 +107,11 @@ export function RichPanelName(props: RichPanelNameProps) {
     return (
         <>
             {size === "sm" ? (
-                <h4 className={classNames("rich-panel-name", className)} {...rest}>
+                <h4 className={classNames("rich-panel-name", className)} translate="no" {...rest}>
                     {children}
                 </h4>
             ) : (
-                <h3 className={classNames("rich-panel-name", className)} {...rest}>
+                <h3 className={classNames("rich-panel-name", className)} translate="no" {...rest}>
                     {children}
                 </h3>
             )}
