@@ -30,6 +30,7 @@ export type CdcLiveBatch = {
     started: string;
     ended: string | null;
     durationInMs: number;
+    read: number;
     processed: number;
     scriptErrors: number;
     readErrors: number;
@@ -197,6 +198,7 @@ function shape(batches: Map<string, TrackedBatch>, nowMs: number): CdcLivePerfor
                 started: raw.Started,
                 ended: raw.Completed ?? null,
                 durationInMs: raw.DurationInMs,
+                read: raw.NumberOfReadMessages,
                 processed: raw.NumberOfProcessedMessages,
                 scriptErrors: raw.ScriptProcessingErrorCount,
                 readErrors: raw.ReadErrorCount,

@@ -374,6 +374,15 @@
         );
     }
 
+    /* Trailing region of the CDC timeline: time that has passed without a batch covering it. */
+    .cdc-timeline-live-edge {
+        background-image: repeating-linear-gradient(
+            -45deg,
+            color-mix(in oklab, var(--color-foreground) 12%, transparent) 0 2px,
+            transparent 2px 9px
+        );
+    }
+
     .app-shell {
         --app-sidebar-width: 13.75rem;
         --app-sidebar-collapsed-width: 3.5rem;

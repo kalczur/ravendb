@@ -4,7 +4,7 @@ import { api } from "@/api/api";
 import { ApiState } from "@/components/data/api-state";
 import { Badge } from "@/components/shadcn/ui/badge";
 import { Button } from "@/components/shadcn/ui/button";
-import { CdcBatchLog } from "@/pages/apps/cdc-batch-log";
+import { CdcTimeline } from "@/pages/apps/cdc-timeline";
 import { DashboardStatCards, type DashboardStatCard } from "@/pages/dashboard/dashboard-stat-cards";
 import { CdcErrorsSheet } from "@/pages/apps/cdc-errors-sheet";
 import { SectionCard } from "@/pages/apps/section-card";
@@ -85,7 +85,7 @@ function CdcPerformanceContent({ performance }: { performance: CdcLivePerformanc
     return (
         <div className="space-y-4">
             <DashboardStatCards cards={cards} />
-            <CdcBatchLog batches={performance.batches} />
+            <CdcTimeline batches={performance.batches} />
         </div>
     );
 }
