@@ -176,7 +176,12 @@ export default function AzureOpenAiSettings({ isUsedByAnyTask }: { isUsedByAnyTa
                     Test connection
                 </ButtonWithSpinner>
             </div>
-            {asyncTest.result && <ConnectionTestResult testResult={asyncTest.result} />}
+            {asyncTest.result && (
+                <ConnectionTestResult
+                    testResult={asyncTest.result}
+                    isImageInputSupportShown={formValues.modelType === "Chat"}
+                />
+            )}
         </>
     );
 }

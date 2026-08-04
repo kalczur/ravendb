@@ -40,7 +40,7 @@ export function EditGenAiTaskStepBasic() {
                 <EditGenAiTaskBasicFields />
             </div>
             <div className="mt-2">
-                <ConnectionTestResult testResult={connectionStringTest.data} />
+                <ConnectionTestResult testResult={connectionStringTest.data} isImageInputSupportShown />
             </div>
         </div>
     );

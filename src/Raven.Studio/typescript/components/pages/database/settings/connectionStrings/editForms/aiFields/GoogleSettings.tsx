@@ -142,7 +142,12 @@ export default function GoogleSettings({ isUsedByAnyTask }: { isUsedByAnyTask: b
                     Test connection
                 </ButtonWithSpinner>
             </div>
-            {asyncTest.result && <ConnectionTestResult testResult={asyncTest.result} />}
+            {asyncTest.result && (
+                <ConnectionTestResult
+                    testResult={asyncTest.result}
+                    isImageInputSupportShown={formValues.modelType === "Chat"}
+                />
+            )}
         </>
     );
 }
