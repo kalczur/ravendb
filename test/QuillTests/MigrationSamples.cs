@@ -7,6 +7,7 @@ using Raven.Client.Documents.Operations.CdcSink;
 using Raven.Client.Documents.Operations.CdcSink.Schema;
 using Raven.Quill.AiHelper;
 using Raven.Quill.AiHelper.Migration;
+using Raven.Quill.AiHelper.Migration.Planning;
 using Raven.Quill.Wizard;
 
 namespace QuillTests;
@@ -59,7 +60,11 @@ public static class MigrationSamples
         JoinColumns = ["customer_id"]
     };
 
-    public static async Task SeedDiscoveredSchemaAsync(IDocumentStore store, string slug)
+    public static async Task SeedDiscoveredSchemaAsync(
+        IDocumentStore store,
+        string slug,
+        MigrationPlan? plan = null,
+        CdcSinkConfiguration? mapConfiguration = null)
     {
         using var session = store.OpenAsyncSession();
         await session.StoreAsync(new WizardState
@@ -71,11 +76,23 @@ public static class MigrationSamples
                 HasPermissionToSetup = true,
                 Tables = [SourceTable("orders"), SourceTable("customers"), SourceTable("audit_log")]
             },
-            LastDiscoverAt = DateTime.UtcNow
+            LastDiscoverAt = DateTime.UtcNow,
+            LastMapConfiguration = mapConfiguration,
+            MigrationPlan = plan
         }, WizardState.DocumentIdFor(slug));
 
         await session.SaveChangesAsync();
     }
+
+    public static async Task<MigrationPlan?> LoadPlanAsync(IDocumentStore store, string slug)
+    {
+        using var session = store.OpenAsyncSession();
+        var state = await session.LoadAsync<WizardState>(WizardState.DocumentIdFor(slug));
+        return state?.MigrationPlan;
+    }
+
+    public static MigrationPlan Plan(string conversationId, params PlanEntry[] entries) =>
+        new() { ConversationId = conversationId, Entries = [.. entries] };
 
     public static string Sse(params MigrationFrame[] frames) =>
         ": keepalive\n\n" + string.Concat(frames.Select(f => $"data: {JsonSerializer.Serialize(f, WireOptions)}\n\n: keepalive\n\n"));

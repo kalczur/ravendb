@@ -1,5 +1,6 @@
 using Raven.Client.Documents;
 using Raven.Client.Documents.Operations.CdcSink;
+using Raven.Quill.Wizard;
 
 namespace Raven.Quill.AiHelper.Migration.Planning;
 
@@ -7,16 +8,11 @@ namespace Raven.Quill.AiHelper.Migration.Planning;
 /// What the model registered in a conversation, kept between the requests of one wizard session:
 /// every turn and the final apply are separate calls, and each needs the plan as it stands.
 /// </summary>
-public sealed class MigrationPlanState
+public sealed class MigrationPlan
 {
-    public const string Collection = "@migration-plans";
-
     private Dictionary<string, PlanEntry>? _index;
 
-    public string Id { get; set; } = string.Empty;
-
-    /// <summary>The app this planning session belongs to. A conversation is never shared between apps.</summary>
-    public string Slug { get; set; } = string.Empty;
+    public string ConversationId { get; set; } = string.Empty;
 
     // A fresh instance per document: the store fills an existing value in place when loading, so a
     // shared default would carry one plan's conventions into every plan loaded after it.
@@ -24,23 +20,13 @@ public sealed class MigrationPlanState
 
     public List<PlanEntry> Entries { get; set; } = [];
 
-    public static string DocumentId(string conversationId) => $"{Collection}/{conversationId}";
-
-    public static async Task<MigrationPlanState?> LoadAsync(IDocumentStore store, string conversationId, CancellationToken token = default)
+    public async Task SaveAsync(IDocumentStore store, string slug, CancellationToken token = default)
     {
-        using var session = store.OpenAsyncSession();
-        return await session.LoadAsync<MigrationPlanState>(DocumentId(conversationId), token);
-    }
-
-    public async Task SaveAsync(IDocumentStore store, string conversationId, CancellationToken token = default)
-    {
-        Id = DocumentId(conversationId);
-
         if (_index is not null)
             Entries = _index.Values.ToList();
 
         using var session = store.OpenAsyncSession();
-        await session.StoreAsync(this, Id, token);
+        session.Advanced.Patch<WizardState, MigrationPlan?>(WizardState.DocumentIdFor(slug), state => state.MigrationPlan, this);
         await session.SaveChangesAsync(token);
     }
 

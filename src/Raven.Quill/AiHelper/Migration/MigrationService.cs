@@ -49,7 +49,7 @@ public sealed class MigrationService(
         Func<MigrationFrame, Task> onFrame,
         CancellationToken token)
     {
-        var (schema, refusal) = await ResolveSchemaAsync(request.Slug, request.SelectedTables, token);
+        var (_, schema, refusal) = await LoadWizardAsync(request.Slug, request.SelectedTables, token);
         if (refusal is not null)
             return refusal;
 
@@ -62,8 +62,9 @@ public sealed class MigrationService(
         await RelayAsync(
             StartPath,
             new PlannerRequest { Slug = request.Slug, Schema = schema, Prompt = prompt },
+            request.Slug,
             conversationId: null,
-            new MigrationPlanState { Slug = request.Slug },
+            new MigrationPlan(),
             onFrame,
             token);
 
@@ -80,7 +81,7 @@ public sealed class MigrationService(
         if (string.IsNullOrWhiteSpace(request.Prompt))
             return new Refusal("prompt is required");
 
-        var (schema, refusal) = await ResolveSchemaAsync(request.Slug, selected: null, token);
+        var (state, schema, refusal) = await LoadWizardAsync(request.Slug, selected: null, token);
         if (refusal is not null)
             return refusal;
 
@@ -90,13 +91,14 @@ public sealed class MigrationService(
 
         // Every session persists its plan at the end of its opening turn, so nothing found here means
         // the conversation is not this app's to continue, whether or not it exists at all.
-        var plan = await LoadPlanAsync(request.Slug, request.ConversationId, token);
+        var plan = CurrentPlan(state!, request.ConversationId);
         if (plan is null)
             return new Refusal("no planning session found for that conversation");
 
         await RelayAsync(
             AskPath,
             new PlannerRequest { Slug = request.Slug, ConversationId = request.ConversationId, Schema = schema, Prompt = request.Prompt },
+            request.Slug,
             request.ConversationId,
             plan,
             onFrame,
@@ -118,7 +120,10 @@ public sealed class MigrationService(
         if (string.IsNullOrWhiteSpace(request.ConversationId))
             return (null, new Refusal("conversationId is required"));
 
-        var plan = await LoadPlanAsync(request.Slug, request.ConversationId, token);
+        using var session = store.OpenAsyncSession();
+        var state = await session.LoadAsync<WizardState>(WizardState.DocumentIdFor(request.Slug), token);
+
+        var plan = state is null ? null : CurrentPlan(state, request.ConversationId);
         if (plan is null)
             return (null, new Refusal("no plan found for that conversation"));
 
@@ -133,10 +138,7 @@ public sealed class MigrationService(
         if (selected.Length == 0)
             return (null, new Refusal("no collections were selected"));
 
-        using var session = store.OpenAsyncSession();
-        var state = await session.LoadAsync<WizardState>(WizardState.DocumentIdFor(request.Slug), token);
-
-        if (state?.LastDiscoveredSchema is null)
+        if (state!.LastDiscoveredSchema is null)
             return (null, new Refusal("no discovered schema found; call /api/setup/discover first"));
 
         var configuration = PlanToCdcConfiguration.Build(selected, state.LastMapConfiguration);
@@ -157,20 +159,17 @@ public sealed class MigrationService(
         return (new MigrationApplyResponse(configuration, unmapped, []), null);
     }
 
-    private async Task<MigrationPlanState?> LoadPlanAsync(string slug, string conversationId, CancellationToken token)
-    {
-        var plan = await MigrationPlanState.LoadAsync(store, conversationId, token);
-
-        return plan is not null && string.Equals(plan.Slug, slug, StringComparison.OrdinalIgnoreCase)
+    private static MigrationPlan? CurrentPlan(WizardState state, string conversationId) =>
+        state.MigrationPlan is { } plan && string.Equals(plan.ConversationId, conversationId, StringComparison.Ordinal)
             ? plan
             : null;
-    }
 
     private async Task RelayAsync(
         string path,
         PlannerRequest request,
+        string slug,
         string? conversationId,
-        MigrationPlanState plan,
+        MigrationPlan plan,
         Func<MigrationFrame, Task> onFrame,
         CancellationToken token)
     {
@@ -218,7 +217,10 @@ public sealed class MigrationService(
                     conversationId = done.ConversationId;
 
                 if (Mirror(plan, frame) && conversationId is not null)
-                    await plan.SaveAsync(store, conversationId, token);
+                {
+                    plan.ConversationId = conversationId;
+                    await plan.SaveAsync(store, slug, token);
+                }
 
                 await onFrame(frame);
             }
@@ -240,7 +242,7 @@ public sealed class MigrationService(
         }
     }
 
-    private static bool Mirror(MigrationPlanState plan, MigrationFrame frame)
+    private static bool Mirror(MigrationPlan plan, MigrationFrame frame)
     {
         switch (frame)
         {
@@ -301,29 +303,29 @@ public sealed class MigrationService(
         return (entries.Where(e => wanted.Contains(e.Collection)).ToArray(), unknown);
     }
 
-    private async Task<(CdcSinkSourceSchema? Schema, Refusal? Refusal)> ResolveSchemaAsync(
+    private async Task<(WizardState? State, CdcSinkSourceSchema? Schema, Refusal? Refusal)> LoadWizardAsync(
         string slug,
         SelectedSourceTable[]? selected,
         CancellationToken token)
     {
         if (string.IsNullOrWhiteSpace(slug))
-            return (null, new Refusal("slug is required"));
+            return (null, null, new Refusal("slug is required"));
 
         WizardState? state;
         using (var session = store.OpenAsyncSession())
             state = await session.LoadAsync<WizardState>(WizardState.DocumentIdFor(slug), token);
 
         if (state?.LastDiscoveredSchema is null)
-            return (null, new Refusal("no discovered schema found; call /api/setup/discover first"));
+            return (null, null, new Refusal("no discovered schema found; call /api/setup/discover first"));
 
         if (selected is not { Length: > 0 })
-            return (state.LastDiscoveredSchema, null);
+            return (state, state.LastDiscoveredSchema, null);
 
         var narrowed = WizardEndpoints.SelectTables(state.LastDiscoveredSchema, selected);
 
         return narrowed.Tables.Count == 0
-            ? (null, new Refusal("none of the selected tables are part of the discovered schema"))
-            : (narrowed, null);
+            ? (null, null, new Refusal("none of the selected tables are part of the discovered schema"))
+            : (state, narrowed, null);
     }
 
     /// <summary>The same gate the one-shot path runs.</summary>

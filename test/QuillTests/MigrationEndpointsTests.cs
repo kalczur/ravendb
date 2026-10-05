@@ -137,7 +137,7 @@ public class MigrationEndpointsTests(ITestOutputHelper output) : QuillTestBase(o
             new DoneFrame { ConversationId = ConversationId });
         await using var host = await NewMigrationHostAsync(planner);
         await SeedDiscoveredSchemaAsync(host);
-        await SeedPlanAsync(host, QuillHost.DefaultWizardSlug, Entry("Orders", MigrationSamples.ValidOrders()));
+        await SeedPlanAsync(host, ConversationId, Entry("Orders", MigrationSamples.ValidOrders()));
 
         var resp = await host.Client.PostAsJsonAsync(QuillRoutes.MigrationAsk, new
         {
@@ -150,17 +150,17 @@ public class MigrationEndpointsTests(ITestOutputHelper output) : QuillTestBase(o
         Assert.Equal(MigrationService.AskPath, planner.LastPath);
         Assert.Equal(["collection", "done"], (await ReadFramesAsync(resp)).Select(f => (string?)f["type"]));
 
-        var plan = await MigrationPlanState.LoadAsync(host.Config, ConversationId);
+        var plan = await MigrationSamples.LoadPlanAsync(host.Config, QuillHost.DefaultWizardSlug);
         Assert.Equal(["Customers", "Orders"], plan!.Entries.Select(e => e.Collection).Order());
     }
 
     [RavenFact(RavenTestCategory.Quill)]
-    public async Task Ask_refuses_a_conversation_that_belongs_to_another_app()
+    public async Task Ask_refuses_a_conversation_that_is_not_the_apps_current_one()
     {
         var planner = StubPlannerHandler.Replying();
         await using var host = await NewMigrationHostAsync(planner);
         await SeedDiscoveredSchemaAsync(host);
-        await SeedPlanAsync(host, "someone-else", Entry("Orders", MigrationSamples.ValidOrders()));
+        await SeedPlanAsync(host, "MigrationChats/other", Entry("Orders", MigrationSamples.ValidOrders()));
 
         var resp = await host.Client.PostAsJsonAsync(QuillRoutes.MigrationAsk, new
         {
@@ -198,7 +198,7 @@ public class MigrationEndpointsTests(ITestOutputHelper output) : QuillTestBase(o
     {
         await using var host = await NewMigrationHostAsync(StubPlannerHandler.Replying());
         await SeedDiscoveredSchemaAsync(host);
-        await SeedPlanAsync(host, QuillHost.DefaultWizardSlug,
+        await SeedPlanAsync(host, ConversationId,
             Entry("Orders", MigrationSamples.ValidOrders()),
             Entry("Customers", Customers()));
 
@@ -223,7 +223,7 @@ public class MigrationEndpointsTests(ITestOutputHelper output) : QuillTestBase(o
     {
         await using var host = await NewMigrationHostAsync(StubPlannerHandler.Replying());
         await SeedDiscoveredSchemaAsync(host);
-        await SeedPlanAsync(host, QuillHost.DefaultWizardSlug, Entry("Orders", MigrationSamples.ValidOrders()));
+        await SeedPlanAsync(host, ConversationId, Entry("Orders", MigrationSamples.ValidOrders()));
 
         var resp = await host.Client.PostAsJsonAsync(QuillRoutes.MigrationApply, new
         {
@@ -242,7 +242,7 @@ public class MigrationEndpointsTests(ITestOutputHelper output) : QuillTestBase(o
     {
         await using var host = await NewMigrationHostAsync(StubPlannerHandler.Replying());
         await SeedDiscoveredSchemaAsync(host);
-        await SeedPlanAsync(host, QuillHost.DefaultWizardSlug, Entry("Orders", MigrationSamples.ValidOrders()));
+        await SeedPlanAsync(host, ConversationId, Entry("Orders", MigrationSamples.ValidOrders()));
 
         var resp = await host.Client.PostAsJsonAsync(QuillRoutes.MigrationApply, new
         {
@@ -273,7 +273,7 @@ public class MigrationEndpointsTests(ITestOutputHelper output) : QuillTestBase(o
 
         await using var host = await NewMigrationHostAsync(StubPlannerHandler.Replying());
         await SeedDiscoveredSchemaAsync(host);
-        await SeedPlanAsync(host, QuillHost.DefaultWizardSlug, Entry("Orders", broken));
+        await SeedPlanAsync(host, ConversationId, Entry("Orders", broken));
 
         var resp = await host.Client.PostAsJsonAsync(QuillRoutes.MigrationApply, new
         {
@@ -289,7 +289,7 @@ public class MigrationEndpointsTests(ITestOutputHelper output) : QuillTestBase(o
     {
         await using var host = await NewMigrationHostAsync(StubPlannerHandler.Replying());
         await SeedDiscoveredSchemaAsync(host);
-        await SeedPlanAsync(host, QuillHost.DefaultWizardSlug);
+        await SeedPlanAsync(host, ConversationId);
 
         var resp = await host.Client.PostAsJsonAsync(QuillRoutes.MigrationApply, new
         {
@@ -325,8 +325,8 @@ public class MigrationEndpointsTests(ITestOutputHelper output) : QuillTestBase(o
     private static Task SeedDiscoveredSchemaAsync(QuillHost host) =>
         MigrationSamples.SeedDiscoveredSchemaAsync(host.Config, QuillHost.DefaultWizardSlug);
 
-    private static Task SeedPlanAsync(QuillHost host, string slug, params PlanEntry[] entries) =>
-        new MigrationPlanState { Slug = slug, Entries = [.. entries] }.SaveAsync(host.Config, ConversationId);
+    private static Task SeedPlanAsync(QuillHost host, string conversationId, params PlanEntry[] entries) =>
+        MigrationSamples.Plan(conversationId, entries).SaveAsync(host.Config, QuillHost.DefaultWizardSlug);
 
     private static PlanEntry Entry(string collection, CdcSinkTableConfig config) =>
         new() { Collection = collection, Version = 1, Rationale = "because", Config = config };

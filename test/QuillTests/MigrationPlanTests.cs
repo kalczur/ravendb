@@ -6,7 +6,7 @@ using Xunit;
 
 namespace QuillTests;
 
-public class MigrationPlanStateTests(ITestOutputHelper output) : NoDisposalNeeded(output)
+public class MigrationPlanTests(ITestOutputHelper output) : NoDisposalNeeded(output)
 {
     [RavenFact(RavenTestCategory.Quill)]
     public void Loading_a_plan_with_conventions_does_not_hand_them_to_the_next_plan()
@@ -16,8 +16,8 @@ public class MigrationPlanStateTests(ITestOutputHelper output) : NoDisposalNeede
         var serializer = JsonSerializer.Create(new JsonSerializerSettings { ObjectCreationHandling = ObjectCreationHandling.Auto });
         const string stored = """{"ConversationId":"c/1","Conventions":{"PropertyCase":"SnakeCase","PropertyLanguage":"Spanish"}}""";
 
-        var loaded = serializer.Deserialize<MigrationPlanState>(new JsonTextReader(new StringReader(stored)));
-        var fresh = new MigrationPlanState();
+        var loaded = serializer.Deserialize<MigrationPlan>(new JsonTextReader(new StringReader(stored)));
+        var fresh = new MigrationPlan();
 
         Assert.Equal(PropertyCase.SnakeCase, loaded!.Conventions.PropertyCase);
         Assert.Equal(PropertyCase.Unspecified, fresh.Conventions.PropertyCase);

@@ -7,6 +7,7 @@ using Raven.Quill.AiHelper.Migration;
 using Raven.Quill.AiHelper.Migration.Planning;
 using Raven.Quill.Contracts;
 using Raven.Quill.Logging;
+using Raven.Quill.Wizard;
 using Tests.Infrastructure;
 using Xunit;
 
@@ -39,19 +40,66 @@ public class MigrationServiceTests(ITestOutputHelper output) : RavenTestBase(out
             f => Assert.Equal("Orders it is.", Assert.IsType<ReplyFrame>(f).Reply),
             f => Assert.Equal(ConversationId, Assert.IsType<DoneFrame>(f).ConversationId));
 
-        var plan = await MigrationPlanState.LoadAsync(store, ConversationId);
-        Assert.Equal(Slug, plan!.Slug);
+        var plan = await MigrationSamples.LoadPlanAsync(store, Slug);
+        Assert.Equal(ConversationId, plan!.ConversationId);
         Assert.Equal("Orders", Assert.Single(plan.Entries).Collection);
+    }
+
+    [RavenFact(RavenTestCategory.Quill)]
+    public async Task Start_replaces_the_previous_plan_on_done()
+    {
+        using var store = await StoreWithSchemaAsync(MigrationSamples.Plan("quill-cdc-planner/old", Entry("Products")));
+        var handler = StubPlannerHandler.Replying(
+            new CollectionFrame { Status = "registered", Collection = "Orders", Version = 1, Config = Orders() },
+            new DoneFrame { ConversationId = ConversationId });
+
+        await NewService(store, handler).StartAsync(new MigrationStartRequest(Slug), Collect([]), CancellationToken.None);
+
+        var plan = await MigrationSamples.LoadPlanAsync(store, Slug);
+        Assert.Equal(ConversationId, plan!.ConversationId);
+        Assert.Equal("Orders", Assert.Single(plan.Entries).Collection);
+    }
+
+    [RavenFact(RavenTestCategory.Quill)]
+    public async Task A_failed_start_keeps_the_previous_plan()
+    {
+        using var store = await StoreWithSchemaAsync(MigrationSamples.Plan(ConversationId, Entry("Orders")));
+
+        await NewService(store, new StubPlannerHandler(HttpStatusCode.BadGateway, "{}"))
+            .StartAsync(new MigrationStartRequest(Slug), Collect([]), CancellationToken.None);
+
+        var plan = await MigrationSamples.LoadPlanAsync(store, Slug);
+        Assert.Equal(ConversationId, plan!.ConversationId);
+        Assert.Equal("Orders", Assert.Single(plan.Entries).Collection);
+    }
+
+    [RavenFact(RavenTestCategory.Quill)]
+    public async Task A_planner_save_leaves_the_rest_of_the_wizard_state_alone()
+    {
+        var mapped = new CdcSinkConfiguration { Tables = [Orders("Mapped")] };
+        using var store = GetDocumentStore();
+        await MigrationSamples.SeedDiscoveredSchemaAsync(store, Slug, mapConfiguration: mapped);
+        var handler = StubPlannerHandler.Replying(
+            new CollectionFrame { Status = "registered", Collection = "Orders", Version = 1, Config = Orders() },
+            new DoneFrame { ConversationId = ConversationId });
+
+        await NewService(store, handler).StartAsync(new MigrationStartRequest(Slug), Collect([]), CancellationToken.None);
+
+        using var session = store.OpenAsyncSession();
+        var state = await session.LoadAsync<WizardState>(WizardState.DocumentIdFor(Slug));
+        Assert.Equal(3, state!.LastDiscoveredSchema!.Tables.Count);
+        Assert.Equal("Mapped", Assert.Single(state.LastMapConfiguration!.Tables).CollectionName);
+        Assert.Equal("Orders", Assert.Single(state.MigrationPlan!.Entries).Collection);
     }
 
     [RavenFact(RavenTestCategory.Quill)]
     public async Task Ask_continues_from_the_stored_mirror_and_applies_removals_and_conventions()
     {
-        using var store = await StoreWithSchemaAsync();
-        var stored = new MigrationPlanState { Slug = Slug };
+        var stored = new MigrationPlan { ConversationId = ConversationId };
         stored.Upsert("Orders", null, Orders());
         stored.Upsert("Products", null, Orders("Products"));
-        await stored.SaveAsync(store, ConversationId);
+        using var store = await StoreWithSchemaAsync();
+        await stored.SaveAsync(store, Slug);
 
         var handler = StubPlannerHandler.Replying(
             new RemovedFrame { Collection = "Products", Reason = "embedded instead" },
@@ -65,10 +113,10 @@ public class MigrationServiceTests(ITestOutputHelper output) : RavenTestBase(out
         Assert.Equal(MigrationService.AskPath, handler.LastPath);
         Assert.Contains($"\"ConversationId\":\"{ConversationId}\"", handler.LastBody);
 
-        var state = await MigrationPlanState.LoadAsync(store, ConversationId);
-        Assert.Equal("Orders", Assert.Single(state!.Entries).Collection);
-        Assert.Equal(PropertyCase.SnakeCase, state.Conventions.PropertyCase);
-        Assert.Equal("Spanish", state.Conventions.PropertyLanguage);
+        var plan = await MigrationSamples.LoadPlanAsync(store, Slug);
+        Assert.Equal("Orders", Assert.Single(plan!.Entries).Collection);
+        Assert.Equal(PropertyCase.SnakeCase, plan.Conventions.PropertyCase);
+        Assert.Equal("Spanish", plan.Conventions.PropertyLanguage);
     }
 
     [RavenFact(RavenTestCategory.Quill)]
@@ -117,16 +165,16 @@ public class MigrationServiceTests(ITestOutputHelper output) : RavenTestBase(out
     [RavenFact(RavenTestCategory.Quill)]
     public async Task Upsert_bumps_the_version_case_insensitively_and_remove_drops_it()
     {
-        using var store = GetDocumentStore();
-        var plan = new MigrationPlanState { Slug = Slug };
+        using var store = await StoreWithSchemaAsync();
+        var plan = new MigrationPlan { ConversationId = ConversationId };
 
         plan.Upsert("Orders", "first", Orders());
         plan.Upsert("orders", "second", Orders());
         plan.Upsert("Products", null, Orders("Products"));
         plan.Remove("PRODUCTS");
-        await plan.SaveAsync(store, ConversationId);
+        await plan.SaveAsync(store, Slug);
 
-        var loaded = await MigrationPlanState.LoadAsync(store, ConversationId);
+        var loaded = await MigrationSamples.LoadPlanAsync(store, Slug);
 
         var entry = Assert.Single(loaded!.Entries);
         Assert.Equal("orders", entry.Collection);
@@ -134,16 +182,16 @@ public class MigrationServiceTests(ITestOutputHelper output) : RavenTestBase(out
         Assert.Equal(2, entry.Version);
 
         loaded.Upsert("Orders", "third", Orders());
-        await loaded.SaveAsync(store, ConversationId);
+        await loaded.SaveAsync(store, Slug);
 
-        var reloaded = await MigrationPlanState.LoadAsync(store, ConversationId);
+        var reloaded = await MigrationSamples.LoadPlanAsync(store, Slug);
         Assert.Equal(3, Assert.Single(reloaded!.Entries).Version);
     }
 
-    private async Task<IDocumentStore> StoreWithSchemaAsync()
+    private async Task<IDocumentStore> StoreWithSchemaAsync(MigrationPlan? plan = null)
     {
         var store = GetDocumentStore();
-        await MigrationSamples.SeedDiscoveredSchemaAsync(store, Slug);
+        await MigrationSamples.SeedDiscoveredSchemaAsync(store, Slug, plan);
         return store;
     }
 
@@ -158,6 +206,9 @@ public class MigrationServiceTests(ITestOutputHelper output) : RavenTestBase(out
         frames.Add(frame);
         return Task.CompletedTask;
     };
+
+    private static PlanEntry Entry(string collection) =>
+        new() { Collection = collection, Version = 1, Config = Orders(collection) };
 
     private static CdcSinkTableConfig Orders(string collection = "Orders") => new()
     {
