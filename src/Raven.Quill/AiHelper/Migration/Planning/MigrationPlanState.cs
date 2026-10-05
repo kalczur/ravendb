@@ -1,3 +1,6 @@
+using Raven.Client.Documents;
+using Raven.Client.Documents.Operations.CdcSink;
+
 namespace Raven.Quill.AiHelper.Migration.Planning;
 
 /// <summary>
@@ -7,6 +10,8 @@ namespace Raven.Quill.AiHelper.Migration.Planning;
 public sealed class MigrationPlanState
 {
     public const string Collection = "@migration-plans";
+
+    private Dictionary<string, PlanEntry>? _index;
 
     public string Id { get; set; } = string.Empty;
 
@@ -20,4 +25,43 @@ public sealed class MigrationPlanState
     public List<PlanEntry> Entries { get; set; } = [];
 
     public static string DocumentId(string conversationId) => $"{Collection}/{conversationId}";
+
+    public static async Task<MigrationPlanState?> LoadAsync(IDocumentStore store, string conversationId, CancellationToken token = default)
+    {
+        using var session = store.OpenAsyncSession();
+        return await session.LoadAsync<MigrationPlanState>(DocumentId(conversationId), token);
+    }
+
+    public async Task SaveAsync(IDocumentStore store, string conversationId, CancellationToken token = default)
+    {
+        Id = DocumentId(conversationId);
+
+        if (_index is not null)
+            Entries = _index.Values.ToList();
+
+        using var session = store.OpenAsyncSession();
+        await session.StoreAsync(this, Id, token);
+        await session.SaveChangesAsync(token);
+    }
+
+    public void Upsert(string collection, string? rationale, CdcSinkTableConfig? config)
+    {
+        var index = Index();
+        var version = index.TryGetValue(collection, out var existing) ? existing.Version + 1 : 1;
+
+        index[collection] = new PlanEntry
+        {
+            Collection = collection,
+            Rationale = rationale,
+            Config = config,
+            Version = version
+        };
+    }
+
+    public void Remove(string collection) => Index().Remove(collection);
+
+    public void SetConventions(NamingConventions conventions) => Conventions = conventions;
+
+    private Dictionary<string, PlanEntry> Index() =>
+        _index ??= Entries.ToDictionary(e => e.Collection, StringComparer.OrdinalIgnoreCase);
 }

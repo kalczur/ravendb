@@ -72,11 +72,12 @@ public sealed class MigrationService(
 
         // Every session persists its plan at the end of its opening turn, so nothing found here means
         // the conversation is not this app's to continue, whether or not it exists at all.
-        if (await client.GetAsync(request.Slug, request.ConversationId, token) is null)
+        var plan = await client.GetAsync(request.Slug, request.ConversationId, token);
+        if (plan is null)
             return new Refusal("no planning session found for that conversation");
 
         await client.AskAsync(
-            new MigrationAskCommand(request.Slug, request.ConversationId, schema!, request.Prompt), onFrame, token);
+            new MigrationAskCommand(request.Slug, request.ConversationId, schema!, request.Prompt), plan, onFrame, token);
 
         return null;
     }
@@ -94,14 +95,14 @@ public sealed class MigrationService(
         if (string.IsNullOrWhiteSpace(request.ConversationId))
             return (null, new Refusal("conversationId is required"));
 
-        var entries = await client.GetAsync(request.Slug, request.ConversationId, token);
-        if (entries is null)
+        var plan = await client.GetAsync(request.Slug, request.ConversationId, token);
+        if (plan is null)
             return (null, new Refusal("no plan found for that conversation"));
 
-        if (entries.Count == 0)
+        if (plan.Entries.Count == 0)
             return (null, new Refusal("the plan has no collections yet"));
 
-        var (selected, unknown) = SelectCollections(entries, request.Collections);
+        var (selected, unknown) = SelectCollections(plan.Entries, request.Collections);
 
         if (unknown.Length > 0)
             return (null, new Refusal($"the plan has no collection named {string.Join(", ", unknown)}"));

@@ -12,10 +12,10 @@ public interface IMigrationClient
 {
     Task StartAsync(MigrationStartCommand command, Func<MigrationFrame, Task> onFrame, CancellationToken token);
 
-    Task AskAsync(MigrationAskCommand command, Func<MigrationFrame, Task> onFrame, CancellationToken token);
+    Task AskAsync(MigrationAskCommand command, MigrationPlanState plan, Func<MigrationFrame, Task> onFrame, CancellationToken token);
 
     /// <summary>What a conversation has registered, or null when no such plan belongs to <paramref name="slug"/>.</summary>
-    Task<IReadOnlyCollection<PlanEntry>?> GetAsync(string slug, string conversationId, CancellationToken token);
+    Task<MigrationPlanState?> GetAsync(string slug, string conversationId, CancellationToken token);
 }
 
 public sealed record MigrationStartCommand(

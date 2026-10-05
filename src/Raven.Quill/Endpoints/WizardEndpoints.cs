@@ -753,7 +753,7 @@ public static class WizardEndpoints
         // against, so the whole-config pass and the per-call pass cannot disagree about what a table has.
         IReadOnlyList<string>? SourceColumnsOf(string? tableSchema, string tableName)
         {
-            var qualified = MigrationPlan.Qualify(tableSchema, tableName);
+            var qualified = SchemaCatalog.Qualify(tableSchema, tableName);
 
             return catalog.Knows(qualified) ? catalog.Columns(qualified) : null;
         }

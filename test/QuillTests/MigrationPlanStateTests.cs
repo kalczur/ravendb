@@ -22,6 +22,5 @@ public class MigrationPlanStateTests(ITestOutputHelper output) : NoDisposalNeede
         Assert.Equal(PropertyCase.SnakeCase, loaded!.Conventions.PropertyCase);
         Assert.Equal(PropertyCase.Unspecified, fresh.Conventions.PropertyCase);
         Assert.Null(fresh.Conventions.PropertyLanguage);
-        Assert.Equal(PropertyCase.Unspecified, new MigrationPlan().Conventions.PropertyCase);
     }
 }

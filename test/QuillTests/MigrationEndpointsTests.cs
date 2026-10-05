@@ -123,6 +123,26 @@ public class MigrationEndpointsTests(ITestOutputHelper output) : QuillTestBase(o
     }
 
     [RavenFact(RavenTestCategory.Quill)]
+    public async Task Ask_continues_with_the_plan_it_loaded_once()
+    {
+        var client = new FakeMigrationClient { Plan = PlanFor(QuillHost.DefaultWizardSlug) };
+        await using var host = await NewMigrationHostAsync(client);
+        await SeedDiscoveredSchemaAsync(host);
+
+        var resp = await host.Client.PostAsJsonAsync(QuillRoutes.MigrationAsk, new
+        {
+            slug = QuillHost.DefaultWizardSlug,
+            conversationId = "MigrationChats/abc",
+            prompt = "go ahead with orders"
+        });
+
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        Assert.Equal("MigrationChats/abc", client.LastAsk!.ConversationId);
+        Assert.Equal(1, client.GetCalls);
+        Assert.Same(client.LastLoaded, client.LastAskPlan);
+    }
+
+    [RavenFact(RavenTestCategory.Quill)]
     public async Task Ask_refuses_a_conversation_that_belongs_to_another_app()
     {
         var client = new FakeMigrationClient { Plan = PlanFor("someone-else") };
@@ -346,6 +366,9 @@ public class MigrationEndpointsTests(ITestOutputHelper output) : QuillTestBase(o
         public Action<List<MigrationFrame>>? OnStart { get; set; }
         public MigrationStartCommand? LastStart { get; private set; }
         public MigrationAskCommand? LastAsk { get; private set; }
+        public MigrationPlanState? LastAskPlan { get; private set; }
+        public MigrationPlanState? LastLoaded { get; private set; }
+        public int GetCalls { get; private set; }
         public FakePlan? Plan { get; set; }
 
         public async Task StartAsync(MigrationStartCommand command, Func<MigrationFrame, Task> onFrame, CancellationToken token)
@@ -354,17 +377,22 @@ public class MigrationEndpointsTests(ITestOutputHelper output) : QuillTestBase(o
             await EmitAsync(onFrame);
         }
 
-        public async Task AskAsync(MigrationAskCommand command, Func<MigrationFrame, Task> onFrame, CancellationToken token)
+        public async Task AskAsync(MigrationAskCommand command, MigrationPlanState plan, Func<MigrationFrame, Task> onFrame, CancellationToken token)
         {
             LastAsk = command;
+            LastAskPlan = plan;
             await EmitAsync(onFrame);
         }
 
-        public Task<IReadOnlyCollection<PlanEntry>?> GetAsync(string slug, string conversationId, CancellationToken token) =>
-            Task.FromResult<IReadOnlyCollection<PlanEntry>?>(
-                Plan is not null && string.Equals(Plan.Slug, slug, StringComparison.OrdinalIgnoreCase)
-                    ? Plan.Entries
-                    : null);
+        public Task<MigrationPlanState?> GetAsync(string slug, string conversationId, CancellationToken token)
+        {
+            GetCalls++;
+            LastLoaded = Plan is not null && string.Equals(Plan.Slug, slug, StringComparison.OrdinalIgnoreCase)
+                ? new MigrationPlanState { Slug = Plan.Slug, Entries = [.. Plan.Entries] }
+                : null;
+
+            return Task.FromResult(LastLoaded);
+        }
 
         private async Task EmitAsync(Func<MigrationFrame, Task> onFrame)
         {

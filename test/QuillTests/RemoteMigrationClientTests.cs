@@ -44,8 +44,8 @@ public class RemoteMigrationClientTests(ITestOutputHelper output) : RavenTestBas
             f => Assert.Equal("Orders it is.", Assert.IsType<ReplyFrame>(f).Reply),
             f => Assert.Equal("quill-cdc-planner/1", Assert.IsType<DoneFrame>(f).ConversationId));
 
-        var entries = await client.GetAsync("shop", "quill-cdc-planner/1", CancellationToken.None);
-        Assert.Equal("Orders", Assert.Single(entries!).Collection);
+        var plan = await client.GetAsync("shop", "quill-cdc-planner/1", CancellationToken.None);
+        Assert.Equal("Orders", Assert.Single(plan!.Entries).Collection);
         Assert.Null(await client.GetAsync("another-app", "quill-cdc-planner/1", CancellationToken.None));
     }
 
@@ -53,11 +53,10 @@ public class RemoteMigrationClientTests(ITestOutputHelper output) : RavenTestBas
     public async Task Ask_continues_from_the_stored_mirror_and_applies_removals_and_conventions()
     {
         using var store = GetDocumentStore();
-        var plans = new MigrationPlanStore(store);
-        var stored = new MigrationPlan();
+        var stored = new MigrationPlanState { Slug = "shop" };
         stored.Upsert("Orders", null, Orders());
         stored.Upsert("Products", null, Orders("Products"));
-        await plans.SaveAsync("shop", "quill-cdc-planner/1", stored);
+        await stored.SaveAsync(store, "quill-cdc-planner/1");
 
         var handler = new StubHandler(HttpStatusCode.OK, Sse(
             new RemovedFrame { Collection = "Products", Reason = "embedded instead" },
@@ -66,12 +65,13 @@ public class RemoteMigrationClientTests(ITestOutputHelper output) : RavenTestBas
             new DoneFrame { ConversationId = "quill-cdc-planner/1" }));
         var client = NewClient(store, handler);
 
-        await client.AskAsync(new MigrationAskCommand("shop", "quill-cdc-planner/1", Schema(), "drop products"), Collect([]), CancellationToken.None);
+        var plan = await client.GetAsync("shop", "quill-cdc-planner/1", CancellationToken.None);
+        await client.AskAsync(new MigrationAskCommand("shop", "quill-cdc-planner/1", Schema(), "drop products"), plan!, Collect([]), CancellationToken.None);
 
         Assert.Equal(RemoteMigrationClient.AskPath, handler.LastPath);
         Assert.Contains("\"ConversationId\":\"quill-cdc-planner/1\"", handler.LastBody);
 
-        var state = await plans.LoadAsync("quill-cdc-planner/1");
+        var state = await MigrationPlanState.LoadAsync(store, "quill-cdc-planner/1");
         Assert.Equal("Orders", Assert.Single(state!.Entries).Collection);
         Assert.Equal(PropertyCase.SnakeCase, state.Conventions.PropertyCase);
         Assert.Equal("Spanish", state.Conventions.PropertyLanguage);
@@ -120,10 +120,35 @@ public class RemoteMigrationClientTests(ITestOutputHelper output) : RavenTestBas
         Assert.IsType<DoneFrame>(Assert.Single(frames));
     }
 
+    [RavenFact(RavenTestCategory.Quill)]
+    public async Task Upsert_bumps_the_version_case_insensitively_and_remove_drops_it()
+    {
+        using var store = GetDocumentStore();
+        var plan = new MigrationPlanState { Slug = "shop" };
+
+        plan.Upsert("Orders", "first", Orders());
+        plan.Upsert("orders", "second", Orders());
+        plan.Upsert("Products", null, Orders("Products"));
+        plan.Remove("PRODUCTS");
+        await plan.SaveAsync(store, "quill-cdc-planner/1");
+
+        var loaded = await MigrationPlanState.LoadAsync(store, "quill-cdc-planner/1");
+
+        var entry = Assert.Single(loaded!.Entries);
+        Assert.Equal("orders", entry.Collection);
+        Assert.Equal("second", entry.Rationale);
+        Assert.Equal(2, entry.Version);
+
+        loaded.Upsert("Orders", "third", Orders());
+        await loaded.SaveAsync(store, "quill-cdc-planner/1");
+
+        var reloaded = await MigrationPlanState.LoadAsync(store, "quill-cdc-planner/1");
+        Assert.Equal(3, Assert.Single(reloaded!.Entries).Version);
+    }
+
     private static RemoteMigrationClient NewClient(Raven.Client.Documents.IDocumentStore store, StubHandler handler) =>
         new(new HttpClient(handler) { BaseAddress = new Uri("http://localhost") },
             store,
-            new MigrationPlanStore(store),
             new QuillLogger<RemoteMigrationClient>());
 
     private static Func<MigrationFrame, Task> Collect(List<MigrationFrame> frames) => frame =>

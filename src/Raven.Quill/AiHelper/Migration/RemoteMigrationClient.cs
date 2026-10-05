@@ -13,7 +13,6 @@ namespace Raven.Quill.AiHelper.Migration;
 public sealed class RemoteMigrationClient(
     HttpClient httpClient,
     IDocumentStore store,
-    MigrationPlanStore plans,
     QuillLogger<RemoteMigrationClient> logger) : IMigrationClient
 {
     public const string StartPath = "/assistant/migration/start";
@@ -26,44 +25,34 @@ public sealed class RemoteMigrationClient(
         RelayAsync(
             StartPath,
             new PlannerRequest { Slug = command.Slug, Schema = command.Schema, Prompt = command.Prompt },
-            command.Slug,
             conversationId: null,
-            new MigrationPlan(),
+            new MigrationPlanState { Slug = command.Slug },
             onFrame,
             token);
 
-    public async Task AskAsync(MigrationAskCommand command, Func<MigrationFrame, Task> onFrame, CancellationToken token)
-    {
-        var plan = new MigrationPlan();
-
-        if (await plans.LoadAsync(command.ConversationId, token) is { } state)
-            plan.Restore(state);
-
-        await RelayAsync(
+    public Task AskAsync(MigrationAskCommand command, MigrationPlanState plan, Func<MigrationFrame, Task> onFrame, CancellationToken token) =>
+        RelayAsync(
             AskPath,
             new PlannerRequest { Slug = command.Slug, ConversationId = command.ConversationId, Schema = command.Schema, Prompt = command.Prompt },
-            command.Slug,
             command.ConversationId,
             plan,
             onFrame,
             token);
-    }
 
-    public async Task<IReadOnlyCollection<PlanEntry>?> GetAsync(string slug, string conversationId, CancellationToken token)
+    public async Task<MigrationPlanState?> GetAsync(string slug, string conversationId, CancellationToken token)
     {
-        var state = await plans.LoadAsync(conversationId, token);
+        var state = await MigrationPlanState.LoadAsync(store, conversationId, token);
 
         return state is not null && string.Equals(state.Slug, slug, StringComparison.OrdinalIgnoreCase)
-            ? state.Entries
+            ? state
             : null;
     }
 
     private async Task RelayAsync(
         string path,
         PlannerRequest request,
-        string slug,
         string? conversationId,
-        MigrationPlan plan,
+        MigrationPlanState plan,
         Func<MigrationFrame, Task> onFrame,
         CancellationToken token)
     {
@@ -111,7 +100,7 @@ public sealed class RemoteMigrationClient(
                     conversationId = done.ConversationId;
 
                 if (Mirror(plan, frame) && conversationId is not null)
-                    await plans.SaveAsync(slug, conversationId, plan, token);
+                    await plan.SaveAsync(store, conversationId, token);
 
                 await onFrame(frame);
             }
@@ -133,7 +122,7 @@ public sealed class RemoteMigrationClient(
         }
     }
 
-    private static bool Mirror(MigrationPlan plan, MigrationFrame frame)
+    private static bool Mirror(MigrationPlanState plan, MigrationFrame frame)
     {
         switch (frame)
         {

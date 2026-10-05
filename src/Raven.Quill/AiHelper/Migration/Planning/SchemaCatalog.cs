@@ -29,6 +29,11 @@ public sealed class SchemaCatalog
     private readonly Dictionary<string, TableEntry> _byQualified = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, List<TableEntry>> _byBare = new(StringComparer.OrdinalIgnoreCase);
 
+    public static string? Qualify(string? tableSchema, string? table) =>
+        string.IsNullOrWhiteSpace(tableSchema) || string.IsNullOrWhiteSpace(table)
+            ? table
+            : $"{tableSchema.Trim()}.{table.Trim()}";
+
     /// <summary>
     /// Build from what discovery already found. No parser is involved: the indexed columns are the
     /// discovered columns.

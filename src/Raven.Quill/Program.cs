@@ -13,7 +13,6 @@ using Polly;
 using Raven.Quill.Agents;
 using Raven.Quill.AiHelper;
 using Raven.Quill.AiHelper.Migration;
-using Raven.Quill.AiHelper.Migration.Planning;
 using Raven.Quill.Auth;
 using Raven.Quill.Embed;
 using Raven.Quill.Endpoints;
@@ -232,7 +231,6 @@ builder.Services.AddHttpClient<IDiscordClient, DiscordApiClient>(static (sp, htt
 builder.Services.AddHttpClient<IAiHelperClient, AiHelperInternalClient>(ConfigureRavenServerClient)
     .ConfigurePrimaryHttpMessageHandler(CreateRavenServerHandler);
 
-builder.Services.AddSingleton<MigrationPlanStore>();
 builder.Services.AddHttpClient<IMigrationClient, RemoteMigrationClient>(ConfigureRavenServerClient)
     .ConfigurePrimaryHttpMessageHandler(CreateRavenServerHandler);
 builder.Services.AddScoped<MigrationService>();
