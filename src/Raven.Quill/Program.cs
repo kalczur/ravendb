@@ -231,9 +231,8 @@ builder.Services.AddHttpClient<IDiscordClient, DiscordApiClient>(static (sp, htt
 builder.Services.AddHttpClient<IAiHelperClient, AiHelperInternalClient>(ConfigureRavenServerClient)
     .ConfigurePrimaryHttpMessageHandler(CreateRavenServerHandler);
 
-builder.Services.AddHttpClient<IMigrationClient, RemoteMigrationClient>(ConfigureRavenServerClient)
+builder.Services.AddHttpClient<MigrationService>(ConfigureRavenServerClient)
     .ConfigurePrimaryHttpMessageHandler(CreateRavenServerHandler);
-builder.Services.AddScoped<MigrationService>();
 
 builder.Services.AddSingleton<ILicenseClient, LicenseHttpClient>();
 

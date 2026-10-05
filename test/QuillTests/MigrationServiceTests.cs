@@ -1,0 +1,170 @@
+using System.Net;
+using FastTests;
+using Raven.Client.Documents;
+using Raven.Client.Documents.Operations.CdcSink;
+using Raven.Quill.AiHelper;
+using Raven.Quill.AiHelper.Migration;
+using Raven.Quill.AiHelper.Migration.Planning;
+using Raven.Quill.Contracts;
+using Raven.Quill.Logging;
+using Tests.Infrastructure;
+using Xunit;
+
+namespace QuillTests;
+
+public class MigrationServiceTests(ITestOutputHelper output) : RavenTestBase(output)
+{
+    private const string Slug = "shop";
+
+    private const string ConversationId = "quill-cdc-planner/1";
+
+    [RavenFact(RavenTestCategory.Quill)]
+    public async Task Start_relays_the_frames_skips_keepalives_and_mirrors_the_plan_on_done()
+    {
+        using var store = await StoreWithSchemaAsync();
+        var handler = StubPlannerHandler.Replying(
+            new NoteFrame { Text = "reading" },
+            new CollectionFrame { Status = "registered", Collection = "Orders", Version = 1, Rationale = "because", Config = Orders() },
+            new ReplyFrame { Reply = "Orders it is." },
+            new DoneFrame { ConversationId = ConversationId });
+        var frames = new List<MigrationFrame>();
+
+        var refusal = await NewService(store, handler).StartAsync(new MigrationStartRequest(Slug, Prompt: "plan it"), Collect(frames), CancellationToken.None);
+
+        Assert.Null(refusal);
+        Assert.Equal(MigrationService.StartPath, handler.LastPath);
+        Assert.Collection(frames,
+            f => Assert.IsType<NoteFrame>(f),
+            f => Assert.Equal("Orders", Assert.IsType<CollectionFrame>(f).Config!.CollectionName),
+            f => Assert.Equal("Orders it is.", Assert.IsType<ReplyFrame>(f).Reply),
+            f => Assert.Equal(ConversationId, Assert.IsType<DoneFrame>(f).ConversationId));
+
+        var plan = await MigrationPlanState.LoadAsync(store, ConversationId);
+        Assert.Equal(Slug, plan!.Slug);
+        Assert.Equal("Orders", Assert.Single(plan.Entries).Collection);
+    }
+
+    [RavenFact(RavenTestCategory.Quill)]
+    public async Task Ask_continues_from_the_stored_mirror_and_applies_removals_and_conventions()
+    {
+        using var store = await StoreWithSchemaAsync();
+        var stored = new MigrationPlanState { Slug = Slug };
+        stored.Upsert("Orders", null, Orders());
+        stored.Upsert("Products", null, Orders("Products"));
+        await stored.SaveAsync(store, ConversationId);
+
+        var handler = StubPlannerHandler.Replying(
+            new RemovedFrame { Collection = "Products", Reason = "embedded instead" },
+            new ConventionsFrame { PropertyCase = PropertyCase.SnakeCase, PropertyLanguage = "Spanish", MustReEmit = ["Orders"] },
+            new ReplyFrame { Reply = "Done." },
+            new DoneFrame { ConversationId = ConversationId });
+
+        var refusal = await NewService(store, handler).AskAsync(new MigrationAskRequest(Slug, ConversationId, "drop products"), Collect([]), CancellationToken.None);
+
+        Assert.Null(refusal);
+        Assert.Equal(MigrationService.AskPath, handler.LastPath);
+        Assert.Contains($"\"ConversationId\":\"{ConversationId}\"", handler.LastBody);
+
+        var state = await MigrationPlanState.LoadAsync(store, ConversationId);
+        Assert.Equal("Orders", Assert.Single(state!.Entries).Collection);
+        Assert.Equal(PropertyCase.SnakeCase, state.Conventions.PropertyCase);
+        Assert.Equal("Spanish", state.Conventions.PropertyLanguage);
+    }
+
+    [RavenFact(RavenTestCategory.Quill)]
+    public async Task Start_sends_the_schema_and_prompt_without_a_conversation()
+    {
+        using var store = await StoreWithSchemaAsync();
+        var handler = StubPlannerHandler.Replying(new DoneFrame { ConversationId = ConversationId });
+
+        await NewService(store, handler).StartAsync(new MigrationStartRequest(Slug, Prompt: "plan it"), Collect([]), CancellationToken.None);
+
+        Assert.Contains($"\"Slug\":\"{Slug}\"", handler.LastBody);
+        Assert.Contains("\"Prompt\":\"plan it\"", handler.LastBody);
+        Assert.Contains("\"SourceTableName\":\"orders\"", handler.LastBody);
+        Assert.DoesNotContain("\"ConversationId\":\"", handler.LastBody);
+    }
+
+    [RavenTheory(RavenTestCategory.Quill)]
+    [InlineData(HttpStatusCode.Unauthorized, "consent")]
+    [InlineData(HttpStatusCode.TooManyRequests, "quota")]
+    [InlineData(HttpStatusCode.NotFound, "No planning session")]
+    [InlineData(HttpStatusCode.BadGateway, "HTTP 502")]
+    public async Task A_refused_request_becomes_one_error_frame(HttpStatusCode status, string expected)
+    {
+        using var store = await StoreWithSchemaAsync();
+        var frames = new List<MigrationFrame>();
+
+        await NewService(store, new StubPlannerHandler(status, "{\"Status\":\"Refused\"}"))
+            .StartAsync(new MigrationStartRequest(Slug), Collect(frames), CancellationToken.None);
+
+        Assert.Contains(expected, Assert.IsType<ErrorFrame>(Assert.Single(frames)).Message);
+    }
+
+    [RavenFact(RavenTestCategory.Quill)]
+    public async Task An_unreadable_frame_is_skipped_and_the_rest_still_arrive()
+    {
+        using var store = await StoreWithSchemaAsync();
+        var body = "data: {\"type\":\"no-such-frame\"}\n\n" + MigrationSamples.Sse(new DoneFrame { ConversationId = ConversationId });
+        var frames = new List<MigrationFrame>();
+
+        await NewService(store, new StubPlannerHandler(HttpStatusCode.OK, body))
+            .StartAsync(new MigrationStartRequest(Slug), Collect(frames), CancellationToken.None);
+
+        Assert.IsType<DoneFrame>(Assert.Single(frames));
+    }
+
+    [RavenFact(RavenTestCategory.Quill)]
+    public async Task Upsert_bumps_the_version_case_insensitively_and_remove_drops_it()
+    {
+        using var store = GetDocumentStore();
+        var plan = new MigrationPlanState { Slug = Slug };
+
+        plan.Upsert("Orders", "first", Orders());
+        plan.Upsert("orders", "second", Orders());
+        plan.Upsert("Products", null, Orders("Products"));
+        plan.Remove("PRODUCTS");
+        await plan.SaveAsync(store, ConversationId);
+
+        var loaded = await MigrationPlanState.LoadAsync(store, ConversationId);
+
+        var entry = Assert.Single(loaded!.Entries);
+        Assert.Equal("orders", entry.Collection);
+        Assert.Equal("second", entry.Rationale);
+        Assert.Equal(2, entry.Version);
+
+        loaded.Upsert("Orders", "third", Orders());
+        await loaded.SaveAsync(store, ConversationId);
+
+        var reloaded = await MigrationPlanState.LoadAsync(store, ConversationId);
+        Assert.Equal(3, Assert.Single(reloaded!.Entries).Version);
+    }
+
+    private async Task<IDocumentStore> StoreWithSchemaAsync()
+    {
+        var store = GetDocumentStore();
+        await MigrationSamples.SeedDiscoveredSchemaAsync(store, Slug);
+        return store;
+    }
+
+    private static MigrationService NewService(IDocumentStore store, StubPlannerHandler handler) =>
+        new(new HttpClient(handler) { BaseAddress = new Uri("http://localhost") },
+            store,
+            new FakeConsentClient(AiHelperStatus.Success),
+            new QuillLogger<MigrationService>());
+
+    private static Func<MigrationFrame, Task> Collect(List<MigrationFrame> frames) => frame =>
+    {
+        frames.Add(frame);
+        return Task.CompletedTask;
+    };
+
+    private static CdcSinkTableConfig Orders(string collection = "Orders") => new()
+    {
+        CollectionName = collection,
+        SourceTableSchema = "public",
+        SourceTableName = "orders",
+        PrimaryKeyColumns = ["order_id"],
+        Columns = [new CdcColumnMapping { Column = "order_id", Name = "OrderId" }]
+    };
+}

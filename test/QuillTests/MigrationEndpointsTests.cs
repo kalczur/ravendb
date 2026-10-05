@@ -2,11 +2,11 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using QuillTests.E2E.Fixtures;
 using Raven.Client.Documents.Operations.CdcSink;
-using Raven.Client.Documents.Operations.CdcSink.Schema;
 using Raven.Quill.AiHelper;
 using Raven.Quill.AiHelper.Migration;
 using Raven.Quill.AiHelper.Migration.Planning;
@@ -19,27 +19,31 @@ namespace QuillTests;
 
 public class MigrationEndpointsTests(ITestOutputHelper output) : QuillTestBase(output)
 {
+    private const string ConversationId = "MigrationChats/abc";
+
+    private static readonly JsonSerializerOptions ApiJson = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() }
+    };
+
     [RavenFact(RavenTestCategory.Quill)]
     public async Task Start_streams_the_frames_the_planner_produced()
     {
-        var client = new FakeMigrationClient();
-        client.OnStart = frames =>
-        {
-            frames.Add(new ProposalFrame
+        var planner = StubPlannerHandler.Replying(
+            new ProposalFrame
             {
                 Collections = [new() { Collection = "Orders", RootTable = "orders" }]
-            });
-            frames.Add(new CollectionFrame
+            },
+            new CollectionFrame
             {
                 Status = "registered",
                 Collection = "Orders",
                 Version = 1,
                 Config = MigrationSamples.ValidOrders()
-            });
-            frames.Add(new DoneFrame { ConversationId = "MigrationChats/abc" });
-        };
+            },
+            new DoneFrame { ConversationId = ConversationId });
 
-        await using var host = await NewMigrationHostAsync(client);
+        await using var host = await NewMigrationHostAsync(planner);
         await SeedDiscoveredSchemaAsync(host);
 
         var resp = await host.Client.PostAsJsonAsync(
@@ -52,37 +56,40 @@ public class MigrationEndpointsTests(ITestOutputHelper output) : QuillTestBase(o
 
         Assert.Equal(["proposal", "collection", "done"], frames.Select(f => (string?)f["type"]));
         Assert.Equal("Orders", (string?)frames[1]["collection"]);
-        Assert.Equal("MigrationChats/abc", (string?)frames[2]["conversationId"]);
+        Assert.Equal(ConversationId, (string?)frames[2]["conversationId"]);
 
         // the schema the planner was handed is the one discovery stored
-        Assert.Equal(3, client.LastStart!.Schema.Tables.Count);
-        Assert.Equal(MigrationService.DefaultStartPrompt, client.LastStart.Prompt);
+        var sent = JsonNode.Parse(planner.LastBody)!;
+        Assert.Equal(3, sent["Schema"]!["Tables"]!.AsArray().Count);
+        Assert.Equal(MigrationService.DefaultStartPrompt, (string?)sent["Prompt"]);
     }
 
     [RavenFact(RavenTestCategory.Quill)]
     public async Task Start_narrows_the_schema_to_the_selected_tables()
     {
-        var client = new FakeMigrationClient();
-        await using var host = await NewMigrationHostAsync(client);
+        var planner = StubPlannerHandler.Replying(new DoneFrame { ConversationId = ConversationId });
+        await using var host = await NewMigrationHostAsync(planner);
         await SeedDiscoveredSchemaAsync(host);
 
         var resp = await host.Client.PostAsJsonAsync(QuillRoutes.MigrationStart, new
         {
             slug = QuillHost.DefaultWizardSlug,
-            selectedTables = new[] { new { sourceTableName = "orders" } },
+            selectedTables = new[] { new { sourceTableName = "orders", sourceTableSchema = "public" } },
             prompt = "just orders please"
         });
 
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
-        Assert.Equal("orders", Assert.Single(client.LastStart!.Schema.Tables).SourceTableName);
-        Assert.Equal("just orders please", client.LastStart.Prompt);
+
+        var sent = JsonNode.Parse(planner.LastBody)!;
+        Assert.Equal("orders", (string?)Assert.Single(sent["Schema"]!["Tables"]!.AsArray())!["SourceTableName"]);
+        Assert.Equal("just orders please", (string?)sent["Prompt"]);
     }
 
     [RavenFact(RavenTestCategory.Quill)]
     public async Task Start_without_a_discovered_schema_is_refused_before_the_planner_is_called()
     {
-        var client = new FakeMigrationClient();
-        await using var host = await NewMigrationHostAsync(client);
+        var planner = StubPlannerHandler.Replying();
+        await using var host = await NewMigrationHostAsync(planner);
 
         var resp = await host.Client.PostAsJsonAsync(
             QuillRoutes.MigrationStart, new { slug = QuillHost.DefaultWizardSlug });
@@ -90,28 +97,28 @@ public class MigrationEndpointsTests(ITestOutputHelper output) : QuillTestBase(o
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
         var error = await resp.Content.ReadFromJsonAsync<ApiErrorResponse>();
         Assert.Contains("discover", error!.Error);
-        Assert.Null(client.LastStart);
+        Assert.Null(planner.LastPath);
     }
 
     [RavenFact(RavenTestCategory.Quill)]
     public async Task Start_without_consent_is_401_and_the_planner_is_not_called()
     {
-        var client = new FakeMigrationClient();
-        await using var host = await NewMigrationHostAsync(client, AiHelperStatus.ConsentRequired);
+        var planner = StubPlannerHandler.Replying();
+        await using var host = await NewMigrationHostAsync(planner, AiHelperStatus.ConsentRequired);
         await SeedDiscoveredSchemaAsync(host);
 
         var resp = await host.Client.PostAsJsonAsync(
             QuillRoutes.MigrationStart, new { slug = QuillHost.DefaultWizardSlug });
 
         Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
-        Assert.Null(client.LastStart);
+        Assert.Null(planner.LastPath);
     }
 
     [RavenFact(RavenTestCategory.Quill)]
     public async Task An_unreachable_ai_service_is_502_not_a_consent_problem()
     {
-        var client = new FakeMigrationClient();
-        await using var host = await NewMigrationHostAsync(client, AiHelperStatus.InternalError);
+        var planner = StubPlannerHandler.Replying();
+        await using var host = await NewMigrationHostAsync(planner, AiHelperStatus.InternalError);
         await SeedDiscoveredSchemaAsync(host);
 
         var resp = await host.Client.PostAsJsonAsync(
@@ -119,54 +126,60 @@ public class MigrationEndpointsTests(ITestOutputHelper output) : QuillTestBase(o
 
         // The operator cannot fix this by giving consent, so it must not be reported as consent.
         Assert.Equal(HttpStatusCode.BadGateway, resp.StatusCode);
-        Assert.Null(client.LastStart);
+        Assert.Null(planner.LastPath);
     }
 
     [RavenFact(RavenTestCategory.Quill)]
-    public async Task Ask_continues_with_the_plan_it_loaded_once()
+    public async Task Ask_relays_to_the_planner_and_mirrors_into_the_stored_plan()
     {
-        var client = new FakeMigrationClient { Plan = PlanFor(QuillHost.DefaultWizardSlug) };
-        await using var host = await NewMigrationHostAsync(client);
+        var planner = StubPlannerHandler.Replying(
+            new CollectionFrame { Status = "registered", Collection = "Customers", Version = 1, Config = Customers() },
+            new DoneFrame { ConversationId = ConversationId });
+        await using var host = await NewMigrationHostAsync(planner);
         await SeedDiscoveredSchemaAsync(host);
+        await SeedPlanAsync(host, QuillHost.DefaultWizardSlug, Entry("Orders", MigrationSamples.ValidOrders()));
 
         var resp = await host.Client.PostAsJsonAsync(QuillRoutes.MigrationAsk, new
         {
             slug = QuillHost.DefaultWizardSlug,
-            conversationId = "MigrationChats/abc",
-            prompt = "go ahead with orders"
+            conversationId = ConversationId,
+            prompt = "add customers"
         });
 
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
-        Assert.Equal("MigrationChats/abc", client.LastAsk!.ConversationId);
-        Assert.Equal(1, client.GetCalls);
-        Assert.Same(client.LastLoaded, client.LastAskPlan);
+        Assert.Equal(MigrationService.AskPath, planner.LastPath);
+        Assert.Equal(["collection", "done"], (await ReadFramesAsync(resp)).Select(f => (string?)f["type"]));
+
+        var plan = await MigrationPlanState.LoadAsync(host.Config, ConversationId);
+        Assert.Equal(["Customers", "Orders"], plan!.Entries.Select(e => e.Collection).Order());
     }
 
     [RavenFact(RavenTestCategory.Quill)]
     public async Task Ask_refuses_a_conversation_that_belongs_to_another_app()
     {
-        var client = new FakeMigrationClient { Plan = PlanFor("someone-else") };
-        await using var host = await NewMigrationHostAsync(client);
+        var planner = StubPlannerHandler.Replying();
+        await using var host = await NewMigrationHostAsync(planner);
         await SeedDiscoveredSchemaAsync(host);
+        await SeedPlanAsync(host, "someone-else", Entry("Orders", MigrationSamples.ValidOrders()));
 
         var resp = await host.Client.PostAsJsonAsync(QuillRoutes.MigrationAsk, new
         {
             slug = QuillHost.DefaultWizardSlug,
-            conversationId = "MigrationChats/abc",
+            conversationId = ConversationId,
             prompt = "go ahead with orders"
         });
 
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
         var error = await resp.Content.ReadFromJsonAsync<ApiErrorResponse>();
         Assert.Contains("no planning session", error!.Error);
-        Assert.Null(client.LastAsk);
+        Assert.Null(planner.LastPath);
     }
 
     [RavenFact(RavenTestCategory.Quill)]
     public async Task Ask_refuses_a_conversation_that_has_no_planning_session()
     {
-        var client = new FakeMigrationClient();
-        await using var host = await NewMigrationHostAsync(client);
+        var planner = StubPlannerHandler.Replying();
+        await using var host = await NewMigrationHostAsync(planner);
         await SeedDiscoveredSchemaAsync(host);
 
         var resp = await host.Client.PostAsJsonAsync(QuillRoutes.MigrationAsk, new
@@ -177,39 +190,28 @@ public class MigrationEndpointsTests(ITestOutputHelper output) : QuillTestBase(o
         });
 
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
-        Assert.Null(client.LastAsk);
+        Assert.Null(planner.LastPath);
     }
 
     [RavenFact(RavenTestCategory.Quill)]
     public async Task Apply_narrows_the_configuration_to_the_selected_collections()
     {
-        var customers = MigrationSamples.ValidOrders();
-        customers.CollectionName = "Customers";
-        customers.SourceTableName = "customers";
-        customers.PrimaryKeyColumns = ["order_id"];
-
-        var client = new FakeMigrationClient
-        {
-            Plan = new FakePlan(QuillHost.DefaultWizardSlug,
-            [
-                new PlanEntry { Collection = "Orders", Version = 1, Config = MigrationSamples.ValidOrders() },
-                new PlanEntry { Collection = "Customers", Version = 1, Config = customers }
-            ])
-        };
-
-        await using var host = await NewMigrationHostAsync(client);
+        await using var host = await NewMigrationHostAsync(StubPlannerHandler.Replying());
         await SeedDiscoveredSchemaAsync(host);
+        await SeedPlanAsync(host, QuillHost.DefaultWizardSlug,
+            Entry("Orders", MigrationSamples.ValidOrders()),
+            Entry("Customers", Customers()));
 
         var resp = await host.Client.PostAsJsonAsync(QuillRoutes.MigrationApply, new
         {
             slug = QuillHost.DefaultWizardSlug,
-            conversationId = "MigrationChats/abc",
+            conversationId = ConversationId,
             collections = new[] { "Orders" }
         });
 
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
 
-        var applied = await resp.Content.ReadFromJsonAsync<MigrationApplyResponse>();
+        var applied = await resp.Content.ReadFromJsonAsync<MigrationApplyResponse>(ApiJson);
         Assert.Equal("Orders", Assert.Single(applied!.Configuration!.Tables).CollectionName);
 
         // A collection left behind is reported rather than silently dropped.
@@ -219,14 +221,14 @@ public class MigrationEndpointsTests(ITestOutputHelper output) : QuillTestBase(o
     [RavenFact(RavenTestCategory.Quill)]
     public async Task Apply_refuses_a_collection_the_plan_does_not_hold()
     {
-        var client = new FakeMigrationClient { Plan = PlanFor(QuillHost.DefaultWizardSlug) };
-        await using var host = await NewMigrationHostAsync(client);
+        await using var host = await NewMigrationHostAsync(StubPlannerHandler.Replying());
         await SeedDiscoveredSchemaAsync(host);
+        await SeedPlanAsync(host, QuillHost.DefaultWizardSlug, Entry("Orders", MigrationSamples.ValidOrders()));
 
         var resp = await host.Client.PostAsJsonAsync(QuillRoutes.MigrationApply, new
         {
             slug = QuillHost.DefaultWizardSlug,
-            conversationId = "MigrationChats/abc",
+            conversationId = ConversationId,
             collections = new[] { "Orders", "Invented" }
         });
 
@@ -238,19 +240,19 @@ public class MigrationEndpointsTests(ITestOutputHelper output) : QuillTestBase(o
     [RavenFact(RavenTestCategory.Quill)]
     public async Task Apply_assembles_the_plan_persists_it_and_reports_uncovered_tables()
     {
-        var client = new FakeMigrationClient { Plan = PlanFor(QuillHost.DefaultWizardSlug) };
-        await using var host = await NewMigrationHostAsync(client);
+        await using var host = await NewMigrationHostAsync(StubPlannerHandler.Replying());
         await SeedDiscoveredSchemaAsync(host);
+        await SeedPlanAsync(host, QuillHost.DefaultWizardSlug, Entry("Orders", MigrationSamples.ValidOrders()));
 
         var resp = await host.Client.PostAsJsonAsync(QuillRoutes.MigrationApply, new
         {
             slug = QuillHost.DefaultWizardSlug,
-            conversationId = "MigrationChats/abc"
+            conversationId = ConversationId
         });
 
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
 
-        var applied = await resp.Content.ReadFromJsonAsync<MigrationApplyResponse>();
+        var applied = await resp.Content.ReadFromJsonAsync<MigrationApplyResponse>(ApiJson);
         Assert.NotNull(applied);
         Assert.Equal("Orders", Assert.Single(applied.Configuration!.Tables).CollectionName);
 
@@ -269,14 +271,14 @@ public class MigrationEndpointsTests(ITestOutputHelper output) : QuillTestBase(o
         var broken = MigrationSamples.ValidOrders();
         broken.PrimaryKeyColumns = [];
 
-        var client = new FakeMigrationClient { Plan = PlanFor(QuillHost.DefaultWizardSlug, broken) };
-        await using var host = await NewMigrationHostAsync(client);
+        await using var host = await NewMigrationHostAsync(StubPlannerHandler.Replying());
         await SeedDiscoveredSchemaAsync(host);
+        await SeedPlanAsync(host, QuillHost.DefaultWizardSlug, Entry("Orders", broken));
 
         var resp = await host.Client.PostAsJsonAsync(QuillRoutes.MigrationApply, new
         {
             slug = QuillHost.DefaultWizardSlug,
-            conversationId = "MigrationChats/abc"
+            conversationId = ConversationId
         });
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, resp.StatusCode);
@@ -285,18 +287,14 @@ public class MigrationEndpointsTests(ITestOutputHelper output) : QuillTestBase(o
     [RavenFact(RavenTestCategory.Quill)]
     public async Task Apply_refuses_an_empty_plan()
     {
-        var client = new FakeMigrationClient
-        {
-            Plan = new FakePlan(QuillHost.DefaultWizardSlug, [])
-        };
-
-        await using var host = await NewMigrationHostAsync(client);
+        await using var host = await NewMigrationHostAsync(StubPlannerHandler.Replying());
         await SeedDiscoveredSchemaAsync(host);
+        await SeedPlanAsync(host, QuillHost.DefaultWizardSlug);
 
         var resp = await host.Client.PostAsJsonAsync(QuillRoutes.MigrationApply, new
         {
             slug = QuillHost.DefaultWizardSlug,
-            conversationId = "MigrationChats/abc"
+            conversationId = ConversationId
         });
 
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
@@ -305,12 +303,11 @@ public class MigrationEndpointsTests(ITestOutputHelper output) : QuillTestBase(o
     // -------------------------------------------------------------------
 
     private Task<QuillHost> NewMigrationHostAsync(
-        FakeMigrationClient client,
+        StubPlannerHandler planner,
         AiHelperStatus consent = AiHelperStatus.Success) =>
         NewHostAsync(configureServices: services =>
         {
-            services.RemoveAll<IMigrationClient>();
-            services.AddSingleton<IMigrationClient>(client);
+            services.AddHttpClient<MigrationService>().ConfigurePrimaryHttpMessageHandler(() => planner);
             services.RemoveAll<IAiHelperClient>();
             services.AddSingleton<IAiHelperClient>(new FakeConsentClient(consent));
         });
@@ -325,108 +322,20 @@ public class MigrationEndpointsTests(ITestOutputHelper output) : QuillTestBase(o
             .ToList();
     }
 
-    private static FakePlan PlanFor(string slug, CdcSinkTableConfig? config = null) =>
-        new(slug, [new PlanEntry { Collection = "Orders", Version = 1, Rationale = "because", Config = config ?? MigrationSamples.ValidOrders() }]);
+    private static Task SeedDiscoveredSchemaAsync(QuillHost host) =>
+        MigrationSamples.SeedDiscoveredSchemaAsync(host.Config, QuillHost.DefaultWizardSlug);
 
-    private static async Task SeedDiscoveredSchemaAsync(QuillHost host)
+    private static Task SeedPlanAsync(QuillHost host, string slug, params PlanEntry[] entries) =>
+        new MigrationPlanState { Slug = slug, Entries = [.. entries] }.SaveAsync(host.Config, ConversationId);
+
+    private static PlanEntry Entry(string collection, CdcSinkTableConfig config) =>
+        new() { Collection = collection, Version = 1, Rationale = "because", Config = config };
+
+    private static CdcSinkTableConfig Customers()
     {
-        using var session = host.Config.OpenAsyncSession();
-        await session.StoreAsync(new WizardState
-        {
-            Provider = "SqlClient",
-            LastDiscoveredSchema = new CdcSinkSourceSchema
-            {
-                CatalogName = "shop",
-                HasPermissionToSetup = true,
-                Tables = [SourceTable("orders"), SourceTable("customers"), SourceTable("audit_log")]
-            },
-            LastDiscoverAt = DateTime.UtcNow
-        }, WizardState.DocumentIdFor(QuillHost.DefaultWizardSlug));
-
-        await session.SaveChangesAsync();
-    }
-
-    private static CdcSinkSourceTable SourceTable(string name) => new()
-    {
-        SourceTableSchema = "public",
-        SourceTableName = name,
-        IsCdcEnabled = true,
-        PrimaryKeyColumns = ["order_id"],
-        Columns =
-        [
-            new CdcSinkSourceColumn { Name = "order_id", NativeType = "int", IsPrimaryKey = true, IsCdcCapturable = true },
-            new CdcSinkSourceColumn { Name = "ordered_at", NativeType = "timestamp", IsCdcCapturable = true }
-        ]
-    };
-
-    private sealed record FakePlan(string Slug, PlanEntry[] Entries);
-
-    private sealed class FakeMigrationClient : IMigrationClient
-    {
-        public Action<List<MigrationFrame>>? OnStart { get; set; }
-        public MigrationStartCommand? LastStart { get; private set; }
-        public MigrationAskCommand? LastAsk { get; private set; }
-        public MigrationPlanState? LastAskPlan { get; private set; }
-        public MigrationPlanState? LastLoaded { get; private set; }
-        public int GetCalls { get; private set; }
-        public FakePlan? Plan { get; set; }
-
-        public async Task StartAsync(MigrationStartCommand command, Func<MigrationFrame, Task> onFrame, CancellationToken token)
-        {
-            LastStart = command;
-            await EmitAsync(onFrame);
-        }
-
-        public async Task AskAsync(MigrationAskCommand command, MigrationPlanState plan, Func<MigrationFrame, Task> onFrame, CancellationToken token)
-        {
-            LastAsk = command;
-            LastAskPlan = plan;
-            await EmitAsync(onFrame);
-        }
-
-        public Task<MigrationPlanState?> GetAsync(string slug, string conversationId, CancellationToken token)
-        {
-            GetCalls++;
-            LastLoaded = Plan is not null && string.Equals(Plan.Slug, slug, StringComparison.OrdinalIgnoreCase)
-                ? new MigrationPlanState { Slug = Plan.Slug, Entries = [.. Plan.Entries] }
-                : null;
-
-            return Task.FromResult(LastLoaded);
-        }
-
-        private async Task EmitAsync(Func<MigrationFrame, Task> onFrame)
-        {
-            var frames = new List<MigrationFrame>();
-            OnStart?.Invoke(frames);
-
-            if (frames.Count == 0)
-                frames.Add(new DoneFrame { ConversationId = "MigrationChats/abc" });
-
-            foreach (var frame in frames)
-                await onFrame(frame);
-        }
-    }
-
-    private sealed class FakeConsentClient(AiHelperStatus consent) : IAiHelperClient
-    {
-        public Task<AiHelperStatus> CheckConsentAsync(CancellationToken ct) => Task.FromResult(consent);
-
-        public Task<AiHelperStatus> GiveConsentAsync(CancellationToken ct) => Task.FromResult(AiHelperStatus.Success);
-
-        public Task<SuggestCdcInternalResult> SuggestCdcAsync(object? schema, object? samples, string prompt, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<SuggestAiAgentInternalResult> SuggestAiAgentAsync(
-            CdcSinkConfiguration cdcConfig, object? collectionsSample, string mode, string? prompt, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<HttpResponseMessage> SendChatAsync(string message, string? conversationId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<(AiHelperStatus Transport, string Content)> SendAsync(string path, string method, object request, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<T> DeserializeAsync<T>(string json, CancellationToken ct) where T : class =>
-            Task.FromResult(JsonSerializer.Deserialize<T>(json)!);
+        var customers = MigrationSamples.ValidOrders();
+        customers.CollectionName = "Customers";
+        customers.SourceTableName = "customers";
+        return customers;
     }
 }

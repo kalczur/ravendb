@@ -1,22 +1,34 @@
+using System.Net;
+using System.Text;
+using System.Text.Json;
 using Raven.Client.Documents;
 using Raven.Client.Documents.Operations.CdcSink.Schema;
 using Raven.Quill.AiHelper.Migration.Planning;
 using Raven.Quill.Contracts;
 using Raven.Quill.Endpoints;
+using Raven.Quill.Endpoints.Helpers;
+using Raven.Quill.Logging;
 using Raven.Quill.Wizard;
+using Sparrow.Json;
 
 namespace Raven.Quill.AiHelper.Migration;
 
 /// <summary>
 /// The Quill half of a planning session: which app it belongs to, which schema it reads, whether
-/// the operator has consented, and what to do with the plan once they are happy with it. The
-/// conversation itself belongs to <see cref="IMigrationClient"/>.
+/// the operator has consented, and what to do with the plan once they are happy with it.
 /// </summary>
 public sealed class MigrationService(
+    HttpClient httpClient,
     IDocumentStore store,
-    IMigrationClient client,
-    IAiHelperClient aiClient)
+    IAiHelperClient aiClient,
+    QuillLogger<MigrationService> logger)
 {
+    public const string StartPath = "/assistant/migration/start";
+
+    public const string AskPath = "/assistant/migration/ask";
+
+    private const string DataPrefix = "data: ";
+
     /// <summary>
     /// The opening message from the design: the agent groups the tables and explains itself, and
     /// registers nothing until the operator has chosen.
@@ -47,7 +59,13 @@ public sealed class MigrationService(
 
         var prompt = string.IsNullOrWhiteSpace(request.Prompt) ? DefaultStartPrompt : request.Prompt!;
 
-        await client.StartAsync(new MigrationStartCommand(request.Slug, schema!, prompt), onFrame, token);
+        await RelayAsync(
+            StartPath,
+            new PlannerRequest { Slug = request.Slug, Schema = schema, Prompt = prompt },
+            conversationId: null,
+            new MigrationPlanState { Slug = request.Slug },
+            onFrame,
+            token);
 
         return null;
     }
@@ -72,12 +90,17 @@ public sealed class MigrationService(
 
         // Every session persists its plan at the end of its opening turn, so nothing found here means
         // the conversation is not this app's to continue, whether or not it exists at all.
-        var plan = await client.GetAsync(request.Slug, request.ConversationId, token);
+        var plan = await LoadPlanAsync(request.Slug, request.ConversationId, token);
         if (plan is null)
             return new Refusal("no planning session found for that conversation");
 
-        await client.AskAsync(
-            new MigrationAskCommand(request.Slug, request.ConversationId, schema!, request.Prompt), plan, onFrame, token);
+        await RelayAsync(
+            AskPath,
+            new PlannerRequest { Slug = request.Slug, ConversationId = request.ConversationId, Schema = schema, Prompt = request.Prompt },
+            request.ConversationId,
+            plan,
+            onFrame,
+            token);
 
         return null;
     }
@@ -95,7 +118,7 @@ public sealed class MigrationService(
         if (string.IsNullOrWhiteSpace(request.ConversationId))
             return (null, new Refusal("conversationId is required"));
 
-        var plan = await client.GetAsync(request.Slug, request.ConversationId, token);
+        var plan = await LoadPlanAsync(request.Slug, request.ConversationId, token);
         if (plan is null)
             return (null, new Refusal("no plan found for that conversation"));
 
@@ -132,6 +155,128 @@ public sealed class MigrationService(
         await session.SaveChangesAsync(token);
 
         return (new MigrationApplyResponse(configuration, unmapped, []), null);
+    }
+
+    private async Task<MigrationPlanState?> LoadPlanAsync(string slug, string conversationId, CancellationToken token)
+    {
+        var plan = await MigrationPlanState.LoadAsync(store, conversationId, token);
+
+        return plan is not null && string.Equals(plan.Slug, slug, StringComparison.OrdinalIgnoreCase)
+            ? plan
+            : null;
+    }
+
+    private async Task RelayAsync(
+        string path,
+        PlannerRequest request,
+        string? conversationId,
+        MigrationPlanState plan,
+        Func<MigrationFrame, Task> onFrame,
+        CancellationToken token)
+    {
+        HttpResponseMessage response;
+
+        try
+        {
+            using var content = new StringContent(SerializeRequest(request), Encoding.UTF8, "application/json");
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Post, path) { Content = content };
+            response = await httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, token);
+        }
+        catch (HttpRequestException e)
+        {
+            if (logger.IsWarnEnabled)
+                logger.Warn(e, $"Planner {path} failed (transport).");
+
+            await onFrame(new ErrorFrame { Message = "The AI service could not be reached." });
+            return;
+        }
+
+        using (response)
+        {
+            if (response.IsSuccessStatusCode == false)
+            {
+                if (logger.IsInfoEnabled)
+                    logger.Info($"Planner {path} failed: upstream {(int)response.StatusCode}.");
+
+                await onFrame(new ErrorFrame { Message = DescribeFailure(response.StatusCode) });
+                return;
+            }
+
+            await using var body = await response.Content.ReadAsStreamAsync(token);
+            using var reader = new StreamReader(body, Encoding.UTF8);
+
+            while (await reader.ReadLineAsync(token) is { } line)
+            {
+                if (line.StartsWith(DataPrefix, StringComparison.Ordinal) == false)
+                    continue;
+
+                var frame = ReadFrame(path, line[DataPrefix.Length..]);
+                if (frame is null)
+                    continue;
+
+                if (frame is DoneFrame done)
+                    conversationId = done.ConversationId;
+
+                if (Mirror(plan, frame) && conversationId is not null)
+                    await plan.SaveAsync(store, conversationId, token);
+
+                await onFrame(frame);
+            }
+        }
+    }
+
+    private MigrationFrame? ReadFrame(string path, string json)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<MigrationFrame>(json, NdjsonStream.JsonOpts);
+        }
+        catch (JsonException e)
+        {
+            if (logger.IsWarnEnabled)
+                logger.Warn(e, $"Planner {path} sent a frame that could not be read; skipping it.");
+
+            return null;
+        }
+    }
+
+    private static bool Mirror(MigrationPlanState plan, MigrationFrame frame)
+    {
+        switch (frame)
+        {
+            case CollectionFrame collection:
+                plan.Upsert(collection.Collection, collection.Rationale, collection.Config);
+                return true;
+
+            case RemovedFrame { Collection: not null } removed:
+                plan.Remove(removed.Collection);
+                return true;
+
+            case ConventionsFrame conventions:
+                plan.SetConventions(new NamingConventions(conventions.PropertyCase, conventions.PropertyLanguage, conventions.Notes));
+                return true;
+
+            case DoneFrame:
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    private static string DescribeFailure(HttpStatusCode statusCode) => statusCode switch
+    {
+        HttpStatusCode.Unauthorized => "The AI service refused the request: consent is required or the license was not accepted.",
+        HttpStatusCode.TooManyRequests => "The monthly AI token quota is used up.",
+        HttpStatusCode.NotFound => "No planning session found for that conversation.",
+        HttpStatusCode.BadRequest => "The AI service rejected the planning request.",
+        _ => $"The AI service failed (HTTP {(int)statusCode})."
+    };
+
+    private string SerializeRequest(PlannerRequest request)
+    {
+        using var ctx = JsonOperationContext.ShortTermSingleUse();
+        return store.Conventions.Serialization.DefaultConverter.ToBlittable(request, ctx).ToString();
     }
 
     /// <summary>
@@ -181,10 +326,7 @@ public sealed class MigrationService(
             : (narrowed, null);
     }
 
-    /// <summary>
-    /// The same gate the one-shot path runs. It stays on the local path too: leaving it to the
-    /// remote implementation would quietly drop it for as long as the agent runs in-process.
-    /// </summary>
+    /// <summary>The same gate the one-shot path runs.</summary>
     private async Task<Refusal?> RequireConsentAsync(CancellationToken token)
     {
         var status = await aiClient.CheckConsentAsync(token);
@@ -195,5 +337,16 @@ public sealed class MigrationService(
         return status.ServiceAnswered()
             ? new Refusal("consent to the RavenDB AI service is required", status)
             : new Refusal("The AI service could not be reached.", status);
+    }
+
+    private sealed class PlannerRequest
+    {
+        public string? Slug { get; init; }
+
+        public string? ConversationId { get; init; }
+
+        public CdcSinkSourceSchema? Schema { get; init; }
+
+        public string? Prompt { get; init; }
     }
 }
