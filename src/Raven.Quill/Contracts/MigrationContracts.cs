@@ -11,6 +11,8 @@ public sealed record MigrationStartRequest(
 /// <summary>One more turn in an existing planning session.</summary>
 public sealed record MigrationAskRequest(string Slug, string ConversationId, string Prompt);
 
+public sealed record MigrationRemoveCollectionRequest(string Slug, string ConversationId, string Collection);
+
 /// <summary>
 /// Turns what the session registered into the configuration the wizard carries on with.
 /// <paramref name="Collections"/> narrows it to the ones the operator kept; empty or absent takes

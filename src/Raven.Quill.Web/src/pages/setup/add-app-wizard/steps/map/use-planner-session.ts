@@ -192,3 +192,28 @@ function replyText(frame: Extract<MigrationFrame, { type: "reply" }>, freeFormQu
 
     return sections.filter(Boolean).join("\n\n");
 }
+
+export function useRemovePlannerCollection() {
+    const { getValues } = useFormContext<AppFormData>();
+
+    return async (collection: string) => {
+        const store = useSetupWizardStore.getState();
+
+        if (!store.plannerConversationId) {
+            return;
+        }
+
+        try {
+            await api.services.migration.removeCollection({
+                slug: getValues("externalConnection").slug,
+                conversationId: store.plannerConversationId,
+                collection,
+            });
+            useSetupWizardStore.getState().removePlannerCollection(collection);
+        } catch (error) {
+            useSetupWizardStore
+                .getState()
+                .appendPlannerMessage(message("error", error instanceof Error ? error.message : String(error)));
+        }
+    };
+}

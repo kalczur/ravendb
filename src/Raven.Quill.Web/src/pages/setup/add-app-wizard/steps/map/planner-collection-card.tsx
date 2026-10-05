@@ -11,11 +11,15 @@ export function PlannerCollectionCard({
     isSelected,
     onSelectedChange,
     onDismiss,
+    onRemove,
+    isRemoveDisabled,
 }: {
     collection: PlannerCollection;
     isSelected: boolean;
     onSelectedChange: (isSelected: boolean) => void;
     onDismiss: () => void;
+    onRemove: () => void;
+    isRemoveDisabled: boolean;
 }) {
     const isRejected = collection.status === "rejected";
 
@@ -52,6 +56,16 @@ export function PlannerCollectionCard({
                         <Badge variant={collection.status === "replaced" ? "info" : "success"}>
                             {collection.status}
                         </Badge>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={onRemove}
+                            disabled={isRemoveDisabled}
+                            aria-label={`Remove ${collection.collection} from the plan`}
+                        >
+                            <X aria-hidden />
+                        </Button>
                     </>
                 )}
             </div>

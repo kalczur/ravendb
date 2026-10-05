@@ -963,6 +963,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/setup/migration/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Takes a registered collection out of the plan. The planner is told on the next turn. */
+        post: operations["setup.migrationRemoveCollection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/setup/migration/apply": {
         parameters: {
             query?: never;
@@ -1703,6 +1720,11 @@ export interface components {
             slug: string;
             conversationId: string;
             prompt: string;
+        };
+        MigrationRemoveCollectionRequest: {
+            slug: string;
+            conversationId: string;
+            collection: string;
         };
         MigrationStartRequest: {
             slug: string;
@@ -4403,6 +4425,37 @@ export interface operations {
             };
         };
     };
+    "setup.migrationRemoveCollection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["MigrationRemoveCollectionRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
     "setup.migrationApply": {
         parameters: {
             query?: never;
@@ -4642,6 +4695,7 @@ export type MetricCard = components["schemas"]["MetricCard"];
 export type MigrationApplyRequest = components["schemas"]["MigrationApplyRequest"];
 export type MigrationApplyResponse = components["schemas"]["MigrationApplyResponse"];
 export type MigrationAskRequest = components["schemas"]["MigrationAskRequest"];
+export type MigrationRemoveCollectionRequest = components["schemas"]["MigrationRemoveCollectionRequest"];
 export type MigrationStartRequest = components["schemas"]["MigrationStartRequest"];
 export type MintEmbedLinkRequest = components["schemas"]["MintEmbedLinkRequest"];
 export type MintEmbedLinkResponse = components["schemas"]["MintEmbedLinkResponse"];
@@ -4787,6 +4841,7 @@ export const API_ENDPOINTS = {
         map: "/setup/map",
         migrationApply: "/setup/migration/apply",
         migrationAsk: "/setup/migration/ask",
+        migrationRemoveCollection: "/setup/migration/remove",
         migrationStart: "/setup/migration/start",
         provision: "/setup/provision",
         suggestCdc: "/setup/suggest/cdc",
@@ -4897,6 +4952,7 @@ export function createServerApi(client: ApiClient) {
             map: (request: MapRequest) => client.post<CdcSinkConfiguration, ApiErrorResponse>(API_ENDPOINTS.setup.map, request),
             migrationApply: (request: string) => client.post<MigrationApplyResponse, ApiErrorResponse>(API_ENDPOINTS.setup.migrationApply, request),
             migrationAsk: (request: string) => client.post<void>(API_ENDPOINTS.setup.migrationAsk, request),
+            migrationRemoveCollection: (request: string) => client.post<void, ApiErrorResponse>(API_ENDPOINTS.setup.migrationRemoveCollection, request),
             migrationStart: (request: string) => client.post<void>(API_ENDPOINTS.setup.migrationStart, request),
             provision: (request: ProvisionRequest) => client.post<ProvisionResponse, ApiErrorResponse>(API_ENDPOINTS.setup.provision, request),
             suggestCdc: (request: SuggestCdcRequest) => client.post<SuggestCdcResponse, ApiErrorResponse>(API_ENDPOINTS.setup.suggestCdc, request),

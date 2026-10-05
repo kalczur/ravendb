@@ -64,7 +64,7 @@ public sealed class MigrationService(
             new PlannerRequest { Slug = request.Slug, Schema = schema, Prompt = prompt },
             request.Slug,
             conversationId: null,
-            new MigrationPlan(),
+            new MigrationPlan { SelectedTables = request.SelectedTables },
             onFrame,
             token);
 
@@ -81,13 +81,9 @@ public sealed class MigrationService(
         if (string.IsNullOrWhiteSpace(request.Prompt))
             return new Refusal("prompt is required");
 
-        var (state, schema, refusal) = await LoadWizardAsync(request.Slug, selected: null, token);
+        var (state, _, refusal) = await LoadWizardAsync(request.Slug, selected: null, token);
         if (refusal is not null)
             return refusal;
-
-        var consent = await RequireConsentAsync(token);
-        if (consent is not null)
-            return consent;
 
         // Every session persists its plan at the end of its opening turn, so nothing found here means
         // the conversation is not this app's to continue, whether or not it exists at all.
@@ -95,14 +91,54 @@ public sealed class MigrationService(
         if (plan is null)
             return new Refusal("no planning session found for that conversation");
 
+        var (_, schema, selectionRefusal) = await LoadWizardAsync(request.Slug, plan.SelectedTables, token);
+        if (selectionRefusal is not null)
+            return selectionRefusal;
+
+        var consent = await RequireConsentAsync(token);
+        if (consent is not null)
+            return consent;
+
         await RelayAsync(
             AskPath,
-            new PlannerRequest { Slug = request.Slug, ConversationId = request.ConversationId, Schema = schema, Prompt = request.Prompt },
+            new PlannerRequest
+            {
+                Slug = request.Slug,
+                ConversationId = request.ConversationId,
+                Schema = schema,
+                Prompt = request.Prompt,
+                Plan = new PlannerPlan { Conventions = plan.Conventions, Entries = plan.CurrentEntries() },
+                RemovedByUser = plan.PendingUserRemovals.ToList()
+            },
             request.Slug,
             request.ConversationId,
             plan,
             onFrame,
             token);
+
+        return null;
+    }
+
+    public async Task<Refusal?> RemoveCollectionAsync(MigrationRemoveCollectionRequest request, CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(request.ConversationId))
+            return new Refusal("conversationId is required");
+        if (string.IsNullOrWhiteSpace(request.Collection))
+            return new Refusal("collection is required");
+
+        WizardState? state;
+        using (var session = store.OpenAsyncSession())
+            state = await session.LoadAsync<WizardState>(WizardState.DocumentIdFor(request.Slug), token);
+
+        var plan = state is null ? null : CurrentPlan(state, request.ConversationId);
+        if (plan is null)
+            return new Refusal("no plan found for that conversation");
+
+        if (plan.Contains(request.Collection) == false)
+            return new Refusal($"the plan has no collection named {request.Collection}");
+
+        plan.RemoveByUser(request.Collection);
+        await plan.SaveAsync(store, request.Slug, token);
 
         return null;
     }
@@ -214,11 +250,16 @@ public sealed class MigrationService(
                     continue;
 
                 if (frame is DoneFrame done)
-                    conversationId = done.ConversationId;
-
-                if (Mirror(plan, frame) && conversationId is not null)
                 {
-                    plan.ConversationId = conversationId;
+                    conversationId = done.ConversationId;
+                    plan.PendingUserRemovals.Clear();
+                }
+
+                if (Mirror(plan, frame))
+                {
+                    if (conversationId is not null)
+                        plan.ConversationId = conversationId;
+
                     await plan.SaveAsync(store, slug, token);
                 }
 
@@ -350,5 +391,16 @@ public sealed class MigrationService(
         public CdcSinkSourceSchema? Schema { get; init; }
 
         public string? Prompt { get; init; }
+
+        public PlannerPlan? Plan { get; init; }
+
+        public List<string>? RemovedByUser { get; init; }
+    }
+
+    private sealed class PlannerPlan
+    {
+        public NamingConventions? Conventions { get; init; }
+
+        public List<PlanEntry>? Entries { get; init; }
     }
 }

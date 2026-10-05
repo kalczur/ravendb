@@ -194,6 +194,75 @@ public class MigrationEndpointsTests(ITestOutputHelper output) : QuillTestBase(o
     }
 
     [RavenFact(RavenTestCategory.Quill)]
+    public async Task Ask_sends_the_plan_the_user_removals_and_only_the_tables_selected_at_start()
+    {
+        var planner = StubPlannerHandler.Replying(new DoneFrame { ConversationId = ConversationId });
+        await using var host = await NewMigrationHostAsync(planner);
+        var plan = MigrationSamples.Plan(ConversationId, Entry("Orders", MigrationSamples.ValidOrders()));
+        plan.SelectedTables = [new SelectedSourceTable("orders", "public")];
+        plan.PendingUserRemovals = ["Customers"];
+        await MigrationSamples.SeedDiscoveredSchemaAsync(host.Config, QuillHost.DefaultWizardSlug, plan);
+
+        var resp = await host.Client.PostAsJsonAsync(QuillRoutes.MigrationAsk, new
+        {
+            slug = QuillHost.DefaultWizardSlug,
+            conversationId = ConversationId,
+            prompt = "add a lines property"
+        });
+
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        await ReadFramesAsync(resp);
+
+        var sent = JsonNode.Parse(planner.LastBody)!;
+        Assert.Equal(["orders"], sent["Schema"]!["Tables"]!.AsArray().Select(t => (string?)t!["SourceTableName"]));
+        Assert.Equal(["Orders"], sent["Plan"]!["Entries"]!.AsArray().Select(e => (string?)e!["Collection"]));
+        Assert.Equal(["Customers"], sent["RemovedByUser"]!.AsArray().Select(c => (string?)c));
+
+        var stored = await MigrationSamples.LoadPlanAsync(host.Config, QuillHost.DefaultWizardSlug);
+        Assert.Empty(stored!.PendingUserRemovals);
+    }
+
+    [RavenFact(RavenTestCategory.Quill)]
+    public async Task Removing_a_collection_takes_it_out_of_the_plan_and_queues_it_for_the_planner()
+    {
+        await using var host = await NewMigrationHostAsync(StubPlannerHandler.Replying());
+        var plan = MigrationSamples.Plan(ConversationId, Entry("Orders", MigrationSamples.ValidOrders()), Entry("Customers", Customers()));
+        await MigrationSamples.SeedDiscoveredSchemaAsync(host.Config, QuillHost.DefaultWizardSlug, plan);
+
+        var resp = await host.Client.PostAsJsonAsync(QuillRoutes.MigrationRemove, new
+        {
+            slug = QuillHost.DefaultWizardSlug,
+            conversationId = ConversationId,
+            collection = "orders"
+        });
+
+        Assert.Equal(HttpStatusCode.NoContent, resp.StatusCode);
+
+        var stored = await MigrationSamples.LoadPlanAsync(host.Config, QuillHost.DefaultWizardSlug);
+        Assert.Equal(["Customers"], stored!.Entries.Select(e => e.Collection));
+        Assert.Equal(["orders"], stored.PendingUserRemovals);
+    }
+
+    [RavenFact(RavenTestCategory.Quill)]
+    public async Task Removing_a_collection_the_plan_does_not_hold_is_refused()
+    {
+        await using var host = await NewMigrationHostAsync(StubPlannerHandler.Replying());
+        await SeedDiscoveredSchemaAsync(host);
+        await SeedPlanAsync(host, ConversationId, Entry("Orders", MigrationSamples.ValidOrders()));
+
+        var resp = await host.Client.PostAsJsonAsync(QuillRoutes.MigrationRemove, new
+        {
+            slug = QuillHost.DefaultWizardSlug,
+            conversationId = ConversationId,
+            collection = "Products"
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+        var error = await resp.Content.ReadFromJsonAsync<ApiErrorResponse>();
+        Assert.Contains("no collection named Products", error!.Error);
+    }
+
+    [RavenFact(RavenTestCategory.Quill)]
     public async Task Apply_narrows_the_configuration_to_the_selected_collections()
     {
         await using var host = await NewMigrationHostAsync(StubPlannerHandler.Replying());

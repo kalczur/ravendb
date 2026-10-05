@@ -100,6 +100,8 @@ export type MigrationAskRequest = { slug: string; conversationId: string; prompt
 
 export type MigrationApplyRequest = { slug: string; conversationId: string; collections?: string[] };
 
+export type MigrationRemoveCollectionRequest = { slug: string; conversationId: string; collection: string };
+
 export type MigrationApplyResult = {
     configuration: { tables?: CdcSinkTableConfig[] | null } | null;
     unmappedTables: string[];
@@ -115,6 +117,9 @@ export function createMigrationService(client: ApiClient) {
             streamFrames(client, "/setup/migration/ask", request, signal),
 
         apply: (request: MigrationApplyRequest) => client.post<MigrationApplyResult>("/setup/migration/apply", request),
+
+        removeCollection: (request: MigrationRemoveCollectionRequest) =>
+            client.post<void>("/setup/migration/remove", request),
     };
 }
 

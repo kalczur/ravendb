@@ -5,6 +5,7 @@ import { Text } from "@/components/typography";
 import { useSetupWizardStore } from "@/pages/setup/add-app-wizard/app-wizard-store";
 import { PlannerCollectionCard } from "@/pages/setup/add-app-wizard/steps/map/planner-collection-card";
 import { PlannerProposalView } from "@/pages/setup/add-app-wizard/steps/map/planner-proposal";
+import { useRemovePlannerCollection } from "@/pages/setup/add-app-wizard/steps/map/use-planner-session";
 
 type ResultsTab = "proposal" | "collections";
 
@@ -19,6 +20,9 @@ export function PlannerResults() {
     const deselected = useSetupWizardStore((state) => state.plannerDeselected);
     const toggle = useSetupWizardStore((state) => state.togglePlannerCollection);
     const dismiss = useSetupWizardStore((state) => state.removePlannerCollection);
+    const isStreaming = useSetupWizardStore((state) => state.isPlannerStreaming);
+    const removeCollection = useRemovePlannerCollection();
+    const [removing, setRemoving] = useState<string | null>(null);
     const [chosenTab, setChosenTab] = useState<ResultsTab | null>(null);
 
     const registered = Object.values(collections);
@@ -67,6 +71,11 @@ export function PlannerResults() {
                                     isSelected={!deselected[collection.collection]}
                                     onSelectedChange={(isSelected) => toggle(collection.collection, isSelected)}
                                     onDismiss={() => dismiss(collection.collection)}
+                                    onRemove={() => {
+                                        setRemoving(collection.collection);
+                                        void removeCollection(collection.collection).finally(() => setRemoving(null));
+                                    }}
+                                    isRemoveDisabled={isStreaming || removing !== null}
                                 />
                             </div>
                         ))}

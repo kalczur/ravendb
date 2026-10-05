@@ -76,6 +76,12 @@ public static class WizardEndpoints
             .WithName("setup.migrationAsk")
             .WithDescription("One more turn in an existing planning session. Streams the same NDJSON frames.")
             .Accepts<MigrationAskRequest>("application/json");
+        group.MapPost("/migration/remove", RemoveMigrationCollectionAsync)
+            .WithName("setup.migrationRemoveCollection")
+            .WithDescription("Takes a registered collection out of the plan. The planner is told on the next turn.")
+            .Accepts<MigrationRemoveCollectionRequest>("application/json")
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces<ApiErrorResponse>(StatusCodes.Status400BadRequest);
         group.MapPost("/migration/apply", ApplyMigrationAsync)
             .WithName("setup.migrationApply")
             .WithDescription("Assembles the registered plan into a CDC configuration and hands it to the map step.")
@@ -478,6 +484,21 @@ public static class WizardEndpoints
         HttpContext ctx,
         CancellationToken ct) =>
         StreamMigrationAsync(ctx, ct, body, (request, write) => service.AskAsync(request, write, ct));
+
+    private static async Task<IResult> RemoveMigrationCollectionAsync(
+        MigrationRemoveCollectionRequest? body,
+        MigrationService service,
+        CancellationToken ct)
+    {
+        if (body is null)
+            return Results.BadRequest(new ApiErrorResponse("request body is required"));
+
+        var refusal = await service.RemoveCollectionAsync(body, ct);
+
+        return refusal is null
+            ? Results.NoContent()
+            : Results.BadRequest(new ApiErrorResponse(refusal.Message));
+    }
 
     private static async Task<IResult> ApplyMigrationAsync(
         MigrationApplyRequest? body,

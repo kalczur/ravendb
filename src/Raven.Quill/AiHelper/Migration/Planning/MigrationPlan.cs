@@ -1,5 +1,6 @@
 using Raven.Client.Documents;
 using Raven.Client.Documents.Operations.CdcSink;
+using Raven.Quill.Contracts;
 using Raven.Quill.Wizard;
 
 namespace Raven.Quill.AiHelper.Migration.Planning;
@@ -19,6 +20,10 @@ public sealed class MigrationPlan
     public NamingConventions Conventions { get; set; } = new();
 
     public List<PlanEntry> Entries { get; set; } = [];
+
+    public SelectedSourceTable[]? SelectedTables { get; set; }
+
+    public List<string> PendingUserRemovals { get; set; } = [];
 
     public async Task SaveAsync(IDocumentStore store, string slug, CancellationToken token = default)
     {
@@ -45,6 +50,18 @@ public sealed class MigrationPlan
     }
 
     public void Remove(string collection) => Index().Remove(collection);
+
+    public bool Contains(string collection) => Index().ContainsKey(collection);
+
+    public void RemoveByUser(string collection)
+    {
+        Remove(collection);
+
+        if (PendingUserRemovals.Contains(collection, StringComparer.OrdinalIgnoreCase) == false)
+            PendingUserRemovals.Add(collection);
+    }
+
+    public List<PlanEntry> CurrentEntries() => Index().Values.ToList();
 
     public void SetConventions(NamingConventions conventions) => Conventions = conventions;
 
