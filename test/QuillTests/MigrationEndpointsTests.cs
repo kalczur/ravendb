@@ -307,6 +307,28 @@ public class MigrationEndpointsTests(ITestOutputHelper output) : QuillTestBase(o
     }
 
     [RavenFact(RavenTestCategory.Quill)]
+    public async Task Apply_reports_only_selected_tables_as_unmapped()
+    {
+        await using var host = await NewMigrationHostAsync(StubPlannerHandler.Replying());
+        await SeedDiscoveredSchemaAsync(host);
+
+        var plan = MigrationSamples.Plan(ConversationId, Entry("Orders", MigrationSamples.ValidOrders()));
+        plan.SelectedTables = [new SelectedSourceTable("orders", "public"), new SelectedSourceTable("customers", "public")];
+        await plan.SaveAsync(host.Config, QuillHost.DefaultWizardSlug);
+
+        var resp = await host.Client.PostAsJsonAsync(QuillRoutes.MigrationApply, new
+        {
+            slug = QuillHost.DefaultWizardSlug,
+            conversationId = ConversationId
+        });
+
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+
+        var applied = await resp.Content.ReadFromJsonAsync<MigrationApplyResponse>(ApiJson);
+        Assert.Equal(["public.customers"], applied!.UnmappedTables);
+    }
+
+    [RavenFact(RavenTestCategory.Quill)]
     public async Task Apply_assembles_the_plan_persists_it_and_reports_uncovered_tables()
     {
         await using var host = await NewMigrationHostAsync(StubPlannerHandler.Replying());

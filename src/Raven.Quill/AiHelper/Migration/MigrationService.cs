@@ -186,7 +186,11 @@ public sealed class MigrationService(
         if (errors.Count > 0)
             return (new MigrationApplyResponse(null, [], errors.ToArray()), null);
 
-        var unmapped = PlanToCdcConfiguration.UnmappedTables(configuration, state.LastDiscoveredSchema);
+        var coverageSchema = plan.SelectedTables is { Length: > 0 }
+            ? WizardEndpoints.SelectTables(state.LastDiscoveredSchema, plan.SelectedTables)
+            : state.LastDiscoveredSchema;
+
+        var unmapped = PlanToCdcConfiguration.UnmappedTables(configuration, coverageSchema);
 
         state.LastMapConfiguration = configuration;
         state.LastMapAt = DateTime.UtcNow;
@@ -255,11 +259,9 @@ public sealed class MigrationService(
                     plan.PendingUserRemovals.Clear();
                 }
 
-                if (Mirror(plan, frame))
+                if (Mirror(plan, frame) && conversationId is not null)
                 {
-                    if (conversationId is not null)
-                        plan.ConversationId = conversationId;
-
+                    plan.ConversationId = conversationId;
                     await plan.SaveAsync(store, slug, token);
                 }
 

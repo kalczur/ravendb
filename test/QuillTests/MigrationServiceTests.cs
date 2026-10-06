@@ -74,6 +74,20 @@ public class MigrationServiceTests(ITestOutputHelper output) : RavenTestBase(out
     }
 
     [RavenFact(RavenTestCategory.Quill)]
+    public async Task A_start_stream_that_ends_without_done_keeps_the_previous_plan()
+    {
+        using var store = await StoreWithSchemaAsync(MigrationSamples.Plan("quill-cdc-planner/old", Entry("Products")));
+        var handler = StubPlannerHandler.Replying(
+            new CollectionFrame { Status = "registered", Collection = "Orders", Version = 1, Config = Orders() });
+
+        await NewService(store, handler).StartAsync(new MigrationStartRequest(Slug), Collect([]), CancellationToken.None);
+
+        var plan = await MigrationSamples.LoadPlanAsync(store, Slug);
+        Assert.Equal("quill-cdc-planner/old", plan!.ConversationId);
+        Assert.Equal("Products", Assert.Single(plan.Entries).Collection);
+    }
+
+    [RavenFact(RavenTestCategory.Quill)]
     public async Task A_planner_save_leaves_the_rest_of_the_wizard_state_alone()
     {
         var mapped = new CdcSinkConfiguration { Tables = [Orders("Mapped")] };

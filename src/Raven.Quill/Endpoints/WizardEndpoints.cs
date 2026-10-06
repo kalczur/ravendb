@@ -87,7 +87,8 @@ public static class WizardEndpoints
             .WithDescription("Assembles the registered plan into a CDC configuration and hands it to the map step.")
             .Accepts<MigrationApplyRequest>("application/json")
             .Produces<MigrationApplyResponse>()
-            .Produces<ApiErrorResponse>(StatusCodes.Status400BadRequest);
+            .Produces<ApiErrorResponse>(StatusCodes.Status400BadRequest)
+            .Produces<ApiErrorResponse>(StatusCodes.Status422UnprocessableEntity);
         group.MapPost("/test-mapping", TestMappingAsync)
             .WithName("setup.testMapping")
             .Accepts<TestMappingRequest>("application/json")
