@@ -3,6 +3,7 @@ import { expect, userEvent, waitFor, within } from "storybook/test";
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useForm } from "react-hook-form";
+import type { MigrationFrame } from "@/api/custom-services/migration-service";
 import type { AiHelperStatus, DiscoverResponse } from "@/api/generated/server-api";
 import { assistantMocks } from "@/mocks/assistant-mocks";
 import { AI_OUT_OF_TOKENS_MESSAGE } from "@/components/ai-consent/use-ai-consent";
@@ -10,6 +11,18 @@ import { FormWizard } from "@/components/form/wizard/form-wizard";
 import { RANGE_PREVIEW_ROW_CLASSNAME } from "@/components/table/row-range-selection";
 import { preventEnterKeySubmission } from "@/lib/form-utils";
 import { defaultApiMocks } from "@/mocks/default-mocks";
+import {
+    migrationMocks,
+    plannerDiscovery,
+    SAMPLE_MIGRATION_CONVERSATION_ID,
+    SAMPLE_MIGRATION_RETRY_PROMPT,
+    sampleCustomersCollection,
+    sampleMigrationAskFrames,
+    sampleMigrationProposal,
+    sampleMigrationQuestionsReply,
+    sampleMigrationRetryFrames,
+    sampleMigrationStartFrames,
+} from "@/mocks/migration-mocks";
 import {
     discoveryWithAllStates,
     failedCdcVerification,
@@ -25,7 +38,9 @@ import { useSetupWizardStore } from "./app-wizard-store";
 import { isTableSupported } from "./discover-utils";
 import { appSchema, type AppFormData, type AppStepId } from "./app-wizard-validation";
 import { computeSourceKey } from "./steps/connect/use-connect-source-step";
+import { composeAnswersPrompt, splitOpenQuestions } from "./steps/map/planner-questions-utils";
 import { computeMapKey } from "./steps/map/use-map-schema-step";
+import { consumePlannerFrame } from "./steps/map/use-planner-session";
 import { createEmptyRootTable, scaffoldRootTable } from "./steps/map-tables/map-tables-utils";
 
 const meta = {
@@ -90,14 +105,16 @@ function consentHandlers(status: AiHelperStatus) {
 }
 
 // Renders the real wizard jumped to a single step. The body components read the discovery
-// result and map-tables selection from the store, so seed both before they first render
-// (Default's AddAppWizard resets the store on mount, so this never leaks).
+// result and map-tables selection from the store, so seed both before they first render. The
+// store is module state shared by every story, so it is reset first to keep one story's planner
+// session out of the next.
 function AppWizardAtStep({
     initialStep,
     discovery = sampleDiscovery,
     isMappingApplied = true,
     hasSelectedTables = true,
     seedOverride,
+    seedStore,
 }: {
     initialStep: AppStepId;
     discovery?: DiscoverResponse;
@@ -106,6 +123,8 @@ function AppWizardAtStep({
     /** When false, the verify step starts with nothing selected, as it does on a fresh discovery. */
     hasSelectedTables?: boolean;
     seedOverride?: (seed: AppFormData) => AppFormData;
+    /** Layers story-specific state onto the seeded store. */
+    seedStore?: () => void;
 }) {
     const [seed] = useState(() => {
         const built = buildSeed(discovery);
@@ -114,7 +133,8 @@ function AppWizardAtStep({
         return seedOverride ? seedOverride(values) : values;
     });
 
-    useState(() =>
+    useState(() => {
+        useSetupWizardStore.getState().reset();
         useSetupWizardStore.setState({
             discoverResult: discovery,
             discoverSchemas: [],
@@ -132,8 +152,9 @@ function AppWizardAtStep({
             mapTablesKey: null,
             mapActiveTable: { type: "root", path: "mapTables.tables.0" },
             mapExpandedPaths: {},
-        }),
-    );
+        });
+        seedStore?.();
+    });
 
     const form = useForm<AppFormData>({
         mode: "onChange",
@@ -465,126 +486,250 @@ export const VerifySchemaCdcVerificationFailed: Story = {
     },
 };
 
-// Seeded with a prompt, so the field is already there and stepping back never hides it.
-export const MapSchema: Story = {
-    render: () => <AppWizardAtStep initialStep="map" />,
-    play: async ({ canvasElement }) => {
-        const canvas = within(canvasElement);
+/** One exchange with the planner: the operator's prompt (none for the opening turn) and the frames streamed back. */
+type PlannerTurn = { prompt?: string; frames: MigrationFrame[] };
 
-        expect(canvas.getByRole("textbox", { name: /intent prompt/i })).toBeInTheDocument();
-    },
+const PLANNER_ANSWERS_PROMPT = composeAnswersPrompt(
+    splitOpenQuestions(sampleMigrationQuestionsReply.openQuestions).pickable,
+    [0, 0],
+    false,
+);
+
+const PLANNER_START_TURN: PlannerTurn = { frames: sampleMigrationStartFrames };
+const PLANNER_ANSWER_TURN: PlannerTurn = { prompt: PLANNER_ANSWERS_PROMPT, frames: sampleMigrationAskFrames };
+const PLANNER_RETRY_TURN: PlannerTurn = { prompt: SAMPLE_MIGRATION_RETRY_PROMPT, frames: sampleMigrationRetryFrames };
+
+const PLANNER_PROPOSAL_TURN: PlannerTurn = {
+    frames: [
+        sampleMigrationProposal,
+        {
+            type: "reply",
+            reply:
+                "I grouped your 6 tables into **3 collections**. Tell me which ones to build, or ask for a " +
+                "different split.",
+            gaps: ["No column says which address is the customer's default shipping address."],
+            openQuestions: [],
+        },
+        { type: "done", conversationId: SAMPLE_MIGRATION_CONVERSATION_ID },
+    ],
 };
 
-const withoutIntentPrompt = (seed: AppFormData): AppFormData => ({ ...seed, map: { ...seed.map, aiPrompt: "" } });
+// Seeds the session through its own frame handling, so the transcript reads exactly like a streamed
+// one, and Send or Submit answers carry on from it against the migration mocks.
+function replayPlannerTurns(turns: PlannerTurn[]) {
+    const store = useSetupWizardStore.getState();
 
-// The real first-run state: AI mapping chosen, no prompt yet, so the step asks only the
-// AI-versus-manual question. Deliberately has no play - a story that clicks its own button is an
-// interaction test, and this one has to stay at rest to be worth looking at.
-export const MapSchemaWithoutIntentPrompt: Story = {
-    render: () => <AppWizardAtStep initialStep="map" seedOverride={withoutIntentPrompt} />,
-};
+    turns.forEach(({ prompt, frames }, index) => {
+        if (prompt) {
+            store.appendPlannerMessage({ id: `story-prompt-${index}`, role: "user", text: prompt });
+            store.setPlannerQuestions([]);
+        }
 
-/*
-   The three stories below drive the intent prompt's transitions. Each one ends up looking like a
-   state already on show above, so they are tagged "!dev" to keep them out of the sidebar - the
-   vitest addon selects on the "test" tag, so they still run.
-*/
+        frames.forEach(consumePlannerFrame);
+    });
+}
 
-// Adding the field swaps the button for a focused textarea.
-export const MapSchemaAddIntentPrompt: Story = {
-    tags: ["!dev"],
-    render: () => <AppWizardAtStep initialStep="map" seedOverride={withoutIntentPrompt} />,
-    play: async ({ canvasElement }) => {
-        const canvas = within(canvasElement);
-
-        expect(canvas.queryByRole("textbox", { name: /intent prompt/i })).not.toBeInTheDocument();
-
-        await userEvent.click(canvas.getByRole("button", { name: /add an intent prompt/i }));
-
-        const prompt = await waitFor(() => canvas.getByRole("textbox", { name: /intent prompt/i }));
-        expect(prompt).toHaveFocus();
-        expect(canvas.queryByRole("button", { name: /add an intent prompt/i })).not.toBeInTheDocument();
-    },
-};
-
-// Removing takes the text with it, so nothing keeps steering the suggestion from a hidden field.
-export const MapSchemaRemoveIntentPrompt: Story = {
-    tags: ["!dev"],
-    render: () => <AppWizardAtStep initialStep="map" />,
-    play: async ({ canvasElement }) => {
-        const canvas = within(canvasElement);
-
-        expect(canvas.getByRole("textbox", { name: /intent prompt/i })).toHaveValue(
-            "Embed order line items and link customers by id.",
-        );
-
-        await userEvent.click(canvas.getByRole("button", { name: /remove/i }));
-
-        const addButton = await waitFor(() => canvas.getByRole("button", { name: /add an intent prompt/i }));
-        expect(addButton).toHaveFocus();
-
-        // Re-adding starts from empty rather than restoring the discarded prompt.
-        await userEvent.click(addButton);
-        await waitFor(() => expect(canvas.getByRole("textbox", { name: /intent prompt/i })).toHaveValue(""));
-    },
-};
-
-// Reaching for the prompt while "Manual" is selected asks for a mapping the prompt cannot steer,
-// so adding it moves the choice to AI Suggest.
-export const MapSchemaIntentPromptFromManual: Story = {
-    tags: ["!dev"],
-    render: () => (
+// Every planner story is a first visit: no mapping in the form yet, so the planner is what
+// "Apply to mapping" waits on.
+function PlannerAtStep({
+    turns = [],
+    isStreaming = false,
+    deselectedCollections = [],
+}: {
+    turns?: PlannerTurn[];
+    /** Holds the session mid-turn. Nothing is actually streaming, so Stop has nothing to abort. */
+    isStreaming?: boolean;
+    deselectedCollections?: string[];
+}) {
+    return (
         <AppWizardAtStep
             initialStep="map"
-            seedOverride={(seed) => ({ ...seed, map: { source: "manual", aiPrompt: "" } })}
+            discovery={plannerDiscovery}
+            seedOverride={(seed) => ({ ...seed, mapTables: { tables: [] } })}
+            seedStore={() => {
+                const store = useSetupWizardStore.getState();
+
+                replayPlannerTurns(turns);
+                deselectedCollections.forEach((collection) => store.togglePlannerCollection(collection, false));
+                store.setIsPlannerStreaming(isStreaming);
+            }}
+        />
+    );
+}
+
+const findApplyButton = (canvasElement: HTMLElement) =>
+    within(canvasElement).getByRole("button", { name: /apply to mapping/i });
+
+// Nothing started yet. Start streams a sample session from the mocks and answering its questions
+// registers collections, so the whole conversation can be clicked through from here.
+export const Planner: Story = {
+    render: () => <PlannerAtStep />,
+};
+
+// Start was just pressed and nothing has come back yet.
+export const PlannerStarting: Story = {
+    render: () => <PlannerAtStep isStreaming />,
+};
+
+// The planner proposed a model and waits on decisions, so its questions take the composer's place.
+export const PlannerQuestions: Story = {
+    render: () => <PlannerAtStep turns={[PLANNER_START_TURN]} />,
+};
+
+// A proposal with nothing to answer: the composer is open and no proposed collection is registered yet.
+export const PlannerProposal: Story = {
+    render: () => <PlannerAtStep turns={[PLANNER_PROPOSAL_TURN]} />,
+};
+
+// Mid-turn: Stop replaces Send, and everything that would race the stream is disabled.
+export const PlannerWorking: Story = {
+    render: () => (
+        <PlannerAtStep
+            turns={[PLANNER_START_TURN, { prompt: PLANNER_ANSWERS_PROMPT, frames: [sampleCustomersCollection] }]}
+            isStreaming
+        />
+    ),
+};
+
+// Two collections registered, one with a warning, and a third rejected with the reasons on its card.
+export const PlannerCollections: Story = {
+    render: () => <PlannerAtStep turns={[PLANNER_START_TURN, PLANNER_ANSWER_TURN]} />,
+};
+
+// A follow-up registered the rejected collection and re-registered another, which now reads "replaced".
+export const PlannerRevisedCollections: Story = {
+    render: () => <PlannerAtStep turns={[PLANNER_START_TURN, PLANNER_ANSWER_TURN, PLANNER_RETRY_TURN]} />,
+};
+
+// Every registered collection unchecked leaves nothing to apply.
+export const PlannerNothingSelected: Story = {
+    render: () => (
+        <PlannerAtStep
+            turns={[PLANNER_START_TURN, PLANNER_ANSWER_TURN]}
+            deselectedCollections={["Customers", "Orders"]}
         />
     ),
     play: async ({ canvasElement }) => {
-        const canvas = within(canvasElement);
-
-        expect(canvas.getByRole("radio", { name: /manual/i })).toBeChecked();
-
-        await userEvent.click(canvas.getByRole("button", { name: /add an intent prompt/i }));
-        await waitFor(() => expect(canvas.getByRole("radio", { name: /ai suggest/i })).toBeChecked());
-        expect(canvas.getByRole("textbox", { name: /intent prompt/i })).toBeInTheDocument();
+        expect(findApplyButton(canvasElement)).toBeDisabled();
     },
 };
 
-// No consent on file yet: the AI card stays on screen disabled, and "Next" waits until it is accepted.
-export const MapSchemaConsentRequired: Story = {
+// The session failed before the planner handed back a conversation, so there is nothing to reply to.
+export const PlannerError: Story = {
+    render: () => (
+        <PlannerAtStep
+            turns={[
+                {
+                    frames: [
+                        { type: "note", text: "Read the schema of 6 tables." },
+                        { type: "error", message: "The AI service failed (HTTP 502)." },
+                    ],
+                },
+            ]}
+        />
+    ),
+};
+
+// No consent on file yet: the banner asks for it above the planner.
+export const PlannerConsentRequired: Story = {
     parameters: { msw: { handlers: consentHandlers("ConsentRequired") } },
-    render: () => <AppWizardAtStep initialStep="map" seedOverride={withoutIntentPrompt} />,
+    render: () => <PlannerAtStep />,
     play: async ({ canvasElement }) => {
         const canvas = within(canvasElement);
 
-        await waitFor(() => expect(canvas.getByRole("radio", { name: /ai suggest/i })).toBeDisabled());
-        expect(canvas.getByRole("button", { name: /^next$/i })).toBeDisabled();
+        await waitFor(() =>
+            expect(canvas.getByRole("button", { name: /review the terms of use/i })).toBeInTheDocument(),
+        );
     },
 };
 
-// A license that rules AI out leaves nothing to accept, so only Manual can carry the wizard on.
-export const MapSchemaAiUnavailable: Story = {
+// A license that rules AI out leaves nothing to accept, so only manual mapping can carry the wizard on.
+export const PlannerAiUnavailable: Story = {
     parameters: { msw: { handlers: consentHandlers("InvalidCredentials") } },
-    render: () => <AppWizardAtStep initialStep="map" seedOverride={withoutIntentPrompt} />,
+    render: () => <PlannerAtStep />,
     play: async ({ canvasElement }) => {
         const canvas = within(canvasElement);
 
-        await waitFor(() => expect(canvas.getByRole("radio", { name: /ai suggest/i })).toBeDisabled());
+        await waitFor(() => expect(canvas.getByRole("alert")).toBeInTheDocument());
         expect(canvas.queryByRole("button", { name: /review the terms of use/i })).not.toBeInTheDocument();
-        expect(canvas.getByRole("button", { name: /^next$/i })).toBeDisabled();
     },
 };
 
 // An exhausted quota also leaves nothing to accept, but unlike a license answer it offers a retry.
-export const MapSchemaAiOutOfTokens: Story = {
+export const PlannerAiOutOfTokens: Story = {
     parameters: { msw: { handlers: consentHandlers("OutOfTokens") } },
-    render: () => <AppWizardAtStep initialStep="map" seedOverride={withoutIntentPrompt} />,
+    render: () => <PlannerAtStep />,
     play: async ({ canvasElement }) => {
         const canvas = within(canvasElement);
 
         await waitFor(() => expect(canvas.getByRole("alert")).toHaveTextContent(AI_OUT_OF_TOKENS_MESSAGE));
-        expect(canvas.getByRole("radio", { name: /ai suggest/i })).toBeDisabled();
         expect(canvas.getByRole("button", { name: /try again/i })).toBeEnabled();
+    },
+};
+
+// The server rejected the assembled plan, so the wizard stays on the step and lists why.
+export const PlannerApplyFailed: Story = {
+    parameters: { msw: { handlers: { setup: [migrationMocks.applyRejected(), ...defaultApiMocks.setup] } } },
+    render: () => <PlannerAtStep turns={[PLANNER_START_TURN, PLANNER_ANSWER_TURN, PLANNER_RETRY_TURN]} />,
+    play: async ({ canvasElement }) => {
+        const canvas = within(canvasElement);
+
+        // The button waits on the consent check before it lets the plan through.
+        await waitFor(() => expect(findApplyButton(canvasElement)).toBeEnabled());
+        await userEvent.click(findApplyButton(canvasElement));
+
+        await waitFor(() => expect(canvas.getByText(/is not part of the selected collections/i)).toBeInTheDocument());
+        expect(canvas.getByRole("heading", { name: /design your document model/i })).toBeInTheDocument();
+    },
+};
+
+/*
+   The two stories below drive the planner end to end. Each one ends up looking like a state already
+   on show above, so they are tagged "!dev" to keep them out of the sidebar.
+*/
+
+// A whole session against the mocks: start, skip the questions, and the collections arrive.
+export const PlannerSessionFlow: Story = {
+    tags: ["!dev"],
+    parameters: {
+        msw: {
+            handlers: {
+                setup: [
+                    migrationMocks.start(sampleMigrationStartFrames, 0),
+                    migrationMocks.ask(sampleMigrationAskFrames, 0),
+                    ...defaultApiMocks.setup,
+                ],
+            },
+        },
+    },
+    render: () => <PlannerAtStep />,
+    play: async ({ canvasElement }) => {
+        const canvas = within(canvasElement);
+
+        await userEvent.click(canvas.getByRole("button", { name: /^start$/i }));
+        await waitFor(() => expect(canvas.getByText(/the planner has 2 questions/i)).toBeInTheDocument());
+        expect(findApplyButton(canvasElement)).toBeDisabled();
+
+        await userEvent.click(canvas.getByRole("button", { name: /skip the questions/i }));
+
+        await waitFor(() => expect(canvas.getByRole("tab", { name: /collections \(3\)/i })).toBeInTheDocument());
+        expect(canvas.getByRole("checkbox", { name: /include orders in the mapping/i })).toBeChecked();
+        await waitFor(() => expect(findApplyButton(canvasElement)).toBeEnabled());
+    },
+};
+
+// Applying hands the registered collections to the mapping editor.
+export const PlannerApplyToMapping: Story = {
+    tags: ["!dev"],
+    render: () => <PlannerAtStep turns={[PLANNER_START_TURN, PLANNER_ANSWER_TURN, PLANNER_RETRY_TURN]} />,
+    play: async ({ canvasElement }) => {
+        const canvas = within(canvasElement);
+
+        // The button waits on the consent check before it lets the plan through.
+        await waitFor(() => expect(findApplyButton(canvasElement)).toBeEnabled());
+        await userEvent.click(findApplyButton(canvasElement));
+
+        await waitFor(() => expect(canvas.getByRole("heading", { name: /map schema/i })).toBeInTheDocument());
     },
 };
 
